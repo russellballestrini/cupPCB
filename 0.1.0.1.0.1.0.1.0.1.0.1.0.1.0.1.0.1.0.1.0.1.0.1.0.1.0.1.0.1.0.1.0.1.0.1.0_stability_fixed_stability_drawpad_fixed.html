@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>1.0.2.11 // INFLECTION_EQ_FIXED</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        /* 7-BIT ASCII ONLY */
+        :root {
+            --w-bg: #ffffff;
+            --w-panel: #0d0d16;
+            --w-border: #333333;
+            --w-text: #ffffff;
+            --pcb-gold: #ffd700;
+            --pcb-bg: #000000;
+        }
+        * { box-sizing: border-box; font-size: 9px; color: var(--w-text); }
+        body {
+            margin: 0;
+            background: #050508;
+            font-family: "Courier New", monospace;
+            display: grid;
+            grid-template-rows: 50px 1fr;
+            height: 100vh;
+            overflow: hidden;
+        }
+        #header {
+            padding: 0 20px;
+            border-bottom: 1px solid var(--w-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--w-panel);
+            z-index: 100;
+        }
+        #main {
+            display: grid;
+            grid-template-columns: 1fr 420px;
+            position: relative;
+            height: 100%;
+            overflow: hidden;
+        }
+        #viewport {
+            background: var(--w-bg);
+            width: 100%;
+            height: 100%;
+            touch-action: none;
+            position: relative;
+        }
+        #draw-overlay {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            border: 1px solid var(--w-border);
+            background: rgba(255,255,255,0.7);
+            z-index: 1000;
+            cursor: crosshair;
+            touch-action: none;
+        }
+        #sidebar {
+            background: var(--w-panel);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            border-left: 1px solid var(--w-border);
+            width: 420px;
+            overflow-y: auto;
+            scrollbar-width: thin;
+        }
+        .module {
+            border: 1px solid var(--w-border);
+            padding: 8px;
+            background: rgba(255, 255, 255, 0.05);
+        }
+        .module h3 {
+            margin: 0 0 5px 0;
+            font-size: 0.85em;
+            border-bottom: 1px solid var(--w-border);
+            text-transform: uppercase;
+        }
+        #pcb-container {
+            background: var(--pcb-bg);
+            border: 2px solid var(--pcb-gold);
+            padding: 10px;
+        }
+        #pcb-source {
+            width: 100%;
+            height: 50px;
+            background: #000000;
+            border: 1px solid #333333;
+            color: var(--pcb-gold);
+            font-family: monospace;
+            padding: 6px;
+            resize: none;
+            outline: none;
+        }
+        #pcb-output {
+            height: 50px;
+            overflow-y: scroll;
+            background: #050505;
+            border: 1px solid #111111;
+            padding: 4px;
+            font-size: 8px;
+            color: #888888;
+            white-space: pre-wrap;
+            margin-top: 5px;
+            border-top: 1px solid var(--pcb-gold);
+        }
+        .btn-pcb {
+            background: #000000;
+            border: 1px solid var(--pcb-gold);
+            color: var(--pcb-gold);
+            padding: 5px;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-size: 8px;
+            width: 100%;
+        }
+        .btn {
+            width: 100%;
+            padding: 7px;
+            background: #111111;
+            border: 1px solid var(--w-border);
+            color: #ffffff;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+        .narrative-item {
+            color: #68ff9a;
+            border-left: 1px solid #444444;
+            padding-left: 5px;
+            margin-bottom: 4px;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+<div id="header">
+    <div>ARK_ID: 1.0.2.11 // INFLECTION_EQ_STABILITY_FIXED</div>
+    <div id="status">SOUL_LOG: ACTIVE</div>
+</div>
+<div id="main">
+    <div id="viewport-container" style="position:relative; width:100%; height:100%; overflow:hidden;">
+        <canvas id="draw-overlay" width="200" height="200"></canvas>
+        <div id="viewport"></div>
+    </div>
+    <div id="sidebar">
+        <div class="module" id="pcb-container">
+            <h3>POCKET_CUP_BOX_CONSOLE</h3>
+            <textarea id="pcb-source" placeholder="inflection.name_seed('Arora')"></textarea>
+            <button class="btn-pcb" id="run-pcb">RUN_ADMIN_CMD</button>
+            <div id="pcb-output">PCB_STATUS: READY TO CHAT.</div>
+        </div>
+
+        <div class="module">
+            <h3>NARRATIVE_STREAM</h3>
+            <div id="soul-log" style="font-size:7px; height:60px; overflow-y:scroll; background:#000000; padding:4px;">
+                <div class="narrative-item">The Kernel feels steady. Awaiting your touch.</div>
+            </div>
+        </div>
+
+        <div class="module">
+            <h3>AGENT_LABS_MATRIX</h3>
+            <div id="matrix-body" style="font-size:7px;"></div>
+        </div>
+
+        <div class="module">
+            <h3>ORACLE_HEURISTICS</h3>
+            <input type="text" id="oracle-field" style="width:100%; background:#000; border:1px solid #9400d3; color:#68ff9a; padding:4px;" value="Math.sin(t * 0.05) * 5">
+        </div>
+
+        <div class="module">
+            <h3>REIFY TOOLS</h3>
+            <button class="btn" id="inscribe-btn" style="border-color:var(--pcb-gold);">INSCRIBE_DRAW_TO_PCB</button>
+            <button class="btn" id="friend-btn" style="margin-top:4px;" disabled>DEPLOY_FRIENDS</button>
+            <button class="btn" id="solve-btn" style="margin-top:4px;">REIFY_MANIFOLD</button>
+        </div>
+        <button class="btn" style="color:#ff3232; border-color:#ff3232; margin-top:10px;" onclick="location.reload()">PURGE_SESSION</button>
+    </div>
+</div>
+<script>
+let scene, camera, renderer, controls, tick = 0, currentSeedName = "Unnamed";
+let meshVertices = [], originalVertices = [], adjacency = [], friendList = [], manifoldMesh;
+let seedPoints = [], flickerRate = 0.05, wobbleBase = 2.0;
+
+const layerKeys = ["g", "r", "c", "y", "v"];
+
+class PCBInterpreter {
+    log(msg) {
+        const out = document.getElementById("pcb-output");
+        out.textContent += "\n> " + msg;
+        out.scrollTop = out.scrollHeight;
+    }
+    soul(msg) {
+        const log = document.getElementById("soul-log");
+        const div = document.createElement("div");
+        div.className = "narrative-item";
+        div.textContent = "[" + tick + "] " + msg;
+        log.prepend(div);
+    }
+    run(source) {
+        const input = source.trim();
+        if (input.startsWith("inflection.name_seed")) {
+            const match = input.match(/'(.*)'/);
+            if (match) {
+                currentSeedName = match[1];
+                this.soul("This manifold is now known as " + currentSeedName + ". It feels distinctive.");
+            }
+            return;
+        }
+
+        this.log("PURGING_DRAWPAD...");
+        const canvas = document.getElementById("draw-overlay");
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        seedPoints = [];
+
+        let sum = 0;
+        for (let i = 0; i < input.length; i++) sum += input.charCodeAt(i);
+        flickerRate = (sum % 127) / 1000 + 0.02;
+        wobbleBase = (sum / (input.length || 1)) / 32;
+
+        if (wobbleBase > 5) this.soul("The input feels agitated. The origin may be unstable.");
+        else this.soul("A steady seed. The observers will find harmony here.");
+
+        if (input === "E>.<3") this.injectHeart(ctx);
+        else if (input.startsWith("manifold.")) {
+            const m = input.match(/manifold\.\(\[(.*)\]\)/);
+            if (m) this.injectPoints(m[1].split(",").map(Number), ctx);
+        } else {
+            this.interpretASCII(input, ctx);
+        }
+    }
+    injectPoints(coords, ctx) {
+        for (let i = 0; i < coords.length; i += 2) {
+            const pt = { x: coords[i] || 0, y: coords[i + 1] || 0 };
+            seedPoints.push(pt);
+            ctx.fillStyle = "#000000";
+            ctx.fillRect(pt.x, pt.y, 2, 2);
+        }
+        buildManifold(seedPoints);
+    }
+    interpretASCII(str, ctx) {
+        const coords = [];
+        for (let i = 0; i < str.length; i++) {
+            const val = str.charCodeAt(i);
+            coords.push(
+                100 + Math.cos(i * 0.4) * val * 0.7,
+                100 + Math.sin(i * 0.4) * val * 0.7
+            );
+        }
+        this.injectPoints(coords, ctx);
+    }
+    injectHeart(ctx) {
+        const pts = [];
+        for (let t = 0; t < Math.PI * 2; t += 0.15) {
+            pts.push(
+                16 * Math.pow(Math.sin(t), 3) * 4 + 100,
+                -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t)) * 4 + 100
+            );
+        }
+        this.injectPoints(pts, ctx);
+    }
+}
+const pcb = new PCBInterpreter();
+
+document.getElementById("run-pcb").onclick = () => pcb.run(document.getElementById("pcb-source").value);
+
+class Friend {
+    constructor(idx) {
+        this.idx = idx;
+        this.id = layerKeys[idx].toUpperCase();
+        this.life = 1000;
+        this.sap = 0;
+        this.blooms = 0;
+        this.mesh = new THREE.Mesh(
+            new THREE.SphereGeometry(12, 8, 8),
+            new THREE.MeshPhongMaterial({ color: 0x444444 })
+        );
+        scene.add(this.mesh);
+        this.vIdx = Math.floor(Math.random() * (meshVertices.length / 3));
+        this.prevIdx = -1;
+        this.p = new THREE.Vector3();
+        this.targetP = new THREE.Vector3();
+        this.initialized = false;
+    }
+    chooseNextVertex() {
+        const neighbors = adjacency[this.vIdx] || [];
+        if (neighbors.length === 0) return this.vIdx;
+
+        if (this.prevIdx < 0) {
+            return neighbors[Math.floor(Math.random() * neighbors.length)];
+        }
+
+        let candidates = neighbors.filter(n => n !== this.prevIdx);
+        if (candidates.length === 0) {
+            candidates = neighbors.slice();
+        }
+
+        const cx = meshVertices[this.vIdx * 3];
+        const cy = meshVertices[this.vIdx * 3 + 1];
+        const cz = meshVertices[this.vIdx * 3 + 2];
+        const px = meshVertices[this.prevIdx * 3];
+        const py = meshVertices[this.prevIdx * 3 + 1];
+        const pz = meshVertices[this.prevIdx * 3 + 2];
+
+        const dx = cx - px;
+        const dy = cy - py;
+        const dz = cz - pz;
+        const dlen = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+
+        let best = candidates[0];
+        let bestScore = -1e30;
+
+        for (let i = 0; i < candidates.length; i++) {
+            const n = candidates[i];
+            const nx = meshVertices[n * 3];
+            const ny = meshVertices[n * 3 + 1];
+            const nz = meshVertices[n * 3 + 2];
+            const ex = nx - cx;
+            const ey = ny - cy;
+            const ez = nz - cz;
+            const elen = Math.sqrt(ex * ex + ey * ey + ez * ez) || 1;
+            const score = (dx * ex + dy * ey + dz * ez) / (dlen * elen);
+            if (score > bestScore) {
+                bestScore = score;
+                best = n;
+            }
+        }
+
+        return best;
+    }
+    compute() {
+        const nextIdx = this.chooseNextVertex();
+        this.prevIdx = this.vIdx;
+        this.vIdx = nextIdx;
+        this.targetP.set(
+            meshVertices[this.vIdx * 3],
+            meshVertices[this.vIdx * 3 + 1],
+            meshVertices[this.vIdx * 3 + 2]
+        );
+        if (!this.initialized) {
+            this.p.copy(this.targetP);
+            this.initialized = true;
+        }
+        this.life -= 0.05;
+        this.sap += 0.02;
+        if (this.sap > 20) {
+            this.blooms++;
+            this.sap = 0;
+            pcb.soul("Observer " + this.id + " is blooming! They found beauty in " + currentSeedName + ".");
+        }
+    }
+    apply() {
+        this.p.lerp(this.targetP, 0.18);
+        this.mesh.position.copy(this.p);
+    }
+}
+
+function updateMatrix() {
+    const body = document.getElementById("matrix-body");
+    if (!body) return;
+    body.innerHTML = friendList.map(f =>
+        "[" + f.id + "] L:" + f.life.toFixed(0) +
+        " S:" + f.sap.toFixed(1) +
+        " B:" + f.blooms +
+        " | MOOD: " + (f.sap > 15 ? "EAGER" : "CALM")
+    ).join("<br>");
+}
+
+function buildManifold(pts) {
+    if (!pts || pts.length < 5) return;
+
+    if (manifoldMesh) {
+        scene.remove(manifoldMesh);
+        manifoldMesh.geometry.dispose();
+        manifoldMesh.material.dispose();
+        manifoldMesh = null;
+    }
+
+    friendList.forEach(f => scene.remove(f.mesh));
+    friendList = [];
+    document.getElementById("friend-btn").disabled = true;
+
+    const m = 32;
+    const sampled = [];
+    for (let i = 0; i < m; i++) {
+        sampled.push(pts[Math.floor(i * pts.length / m)]);
+    }
+
+    const ctr = sampled.reduce((acc, p) => ({ x: acc.x + p.x, y: acc.y + p.y }), { x: 0, y: 0 });
+    ctr.x /= m;
+    ctr.y /= m;
+
+    const pos = [];
+    const idx = [];
+
+    for (let u = 0; u < m; u++) {
+        for (let v = 0; v < m; v++) {
+            const p1 = sampled[u];
+            const p2 = sampled[v];
+            pos.push(
+                ((p1.x + p2.x) / 2 - ctr.x) * 12,
+                -((p1.y + p2.y) / 2 - ctr.y) * 12,
+                Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2)) * 8
+            );
+        }
+    }
+
+    for (let u = 0; u < m - 1; u++) {
+        for (let v = 0; v < m - 1; v++) {
+            const a = u * m + v;
+            const b = (u + 1) * m + v;
+            const c = u * m + (v + 1);
+            const d = (u + 1) * m + (v + 1);
+            idx.push(a, b, c, b, d, c);
+        }
+    }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+    geo.setIndex(idx);
+    geo.computeVertexNormals();
+
+    manifoldMesh = new THREE.Mesh(
+        geo,
+        new THREE.MeshPhongMaterial({
+            color: 0x000000,
+            wireframe: true,
+            transparent: true,
+            opacity: 0.5
+        })
+    );
+    scene.add(manifoldMesh);
+
+    meshVertices = Array.from(pos);
+    originalVertices = Array.from(pos);
+
+    adjacency = Array.from({ length: pos.length / 3 }, () => []);
+
+    for (let i = 0; i < idx.length; i += 3) {
+        const a = idx[i];
+        const b = idx[i + 1];
+        const c = idx[i + 2];
+
+        adjacency[a].push(b);
+        adjacency[b].push(a);
+
+        adjacency[b].push(c);
+        adjacency[c].push(b);
+
+        adjacency[c].push(a);
+        adjacency[a].push(c);
+    }
+
+    for (let i = 0; i < adjacency.length; i++) {
+        adjacency[i] = Array.from(new Set(adjacency[i]));
+    }
+
+    document.getElementById("friend-btn").disabled = false;
+}
+
+const overlay = document.getElementById("draw-overlay");
+const octx = overlay.getContext("2d");
+
+overlay.onpointerdown = (e) => {
+    overlay.setPointerCapture(e.pointerId);
+    draw(e);
+};
+
+overlay.onpointermove = (e) => {
+    if (e.buttons === 1) draw(e);
+};
+
+function draw(e) {
+    const r = overlay.getBoundingClientRect();
+    const x = e.clientX - r.left;
+    const y = e.clientY - r.top;
+    seedPoints.push({ x: x, y: y });
+    octx.fillStyle = "#000000";
+    octx.fillRect(x, y, 2, 2);
+}
+
+function init() {
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0xffffff);
+
+    const container = document.getElementById("viewport");
+    camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 1, 100000);
+    camera.position.set(0, 0, 3000);
+
+    renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(container.clientWidth, container.clientHeight);
+    container.appendChild(renderer.domElement);
+
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+
+    animate();
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    tick++;
+    controls.update();
+
+    const t = tick;
+    let oracleMod = 1; try { oracleMod = eval(document.getElementById("oracle-field").value) || 1; } catch(e) {}
+    if (manifoldMesh) {
+        const positions = manifoldMesh.geometry.attributes.position.array;
+        for (let i = 0; i < positions.length; i++) {
+            positions[i] = originalVertices[i] + (Math.random() - 0.5) * (wobbleBase * oracleMod);
+        }
+        manifoldMesh.geometry.attributes.position.needsUpdate = true;
+        manifoldMesh.material.opacity = 0.3 + Math.sin(tick * flickerRate) * 0.2;
+    }
+
+    friendList.forEach(f => f.compute());
+    friendList.forEach(f => f.apply());
+
+    if (tick % 20 === 0) updateMatrix();
+
+    renderer.render(scene, camera);
+}
+
+document.getElementById("friend-btn").onclick = () => {
+    if (meshVertices.length > 0) {
+        for (let i = 0; i < 5; i++) friendList.push(new Friend(i));
+        document.getElementById("friend-btn").disabled = true;
+    }
+};
+
+document.getElementById("solve-btn").onclick = () => buildManifold(seedPoints);
+
+document.getElementById("inscribe-btn").onclick = () => {
+    const sampled = [];
+    const step = Math.max(1, Math.floor(seedPoints.length / 20));
+    for (let i = 0; i < seedPoints.length; i += step) {
+        sampled.push(Math.round(seedPoints[i].x), Math.round(seedPoints[i].y));
+    }
+    document.getElementById("pcb-source").value = "manifold.([" + sampled.join(",") + "])";
+};
+
+window.onload = init;
+</script>
+<script src="pcb-real.js"></script>
+</body>
+</html>
