@@ -1,0 +1,10 @@
+stages:
+  - deploy
+
+deploy:
+  stage: deploy
+  tags: ["proxy.uncloseai.com"]
+  script:
+    - sudo /usr/local/bin/deploy-www.sh cuppcb .
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
