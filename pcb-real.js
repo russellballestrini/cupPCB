@@ -724,10 +724,96 @@
       });
     });
 
+    // MANIFEST -- clear pad, spiral source string into manifold
+    function manifestASCII(source) {
+      // clear draw overlay
+      const overlay = document.getElementById('draw-overlay');
+      if (overlay) {
+        const octx = overlay.getContext('2d');
+        octx.clearRect(0, 0, overlay.width, overlay.height);
+      }
+      // clear seedPoints and manifold
+      if (typeof seedPoints !== 'undefined') seedPoints.length = 0;
+      if (typeof manifoldMesh !== 'undefined' && manifoldMesh && typeof scene !== 'undefined') {
+        scene.remove(manifoldMesh);
+      }
+      if (!source || source.trim().length === 0) return;
+      // ASCII spiral -- charcode mapped to canvas coordinates
+      const octx2 = overlay ? overlay.getContext('2d') : null;
+      const cx = overlay ? overlay.width / 2 : 100;
+      const cy = overlay ? overlay.height / 2 : 100;
+      const str = source.trim();
+      for (let i = 0; i < str.length; i++) {
+        const val = str.charCodeAt(i);
+        const angle = i * 0.4;
+        const r = (val / 127) * Math.min(cx, cy) * 0.85;
+        const x = cx + Math.cos(angle) * r;
+        const y = cy + Math.sin(angle) * r;
+        if (typeof seedPoints !== 'undefined') seedPoints.push({ x, y });
+        if (octx2) {
+          octx2.fillStyle = '#000';
+          octx2.fillRect(x, y, 2, 2);
+        }
+      }
+      // build manifold from new seed points
+      if (typeof buildManifold === 'function' && typeof seedPoints !== 'undefined') {
+        buildManifold(seedPoints);
+      }
+    }
+
+    // HEART -- inject heart curve into manifold
+    function manifestHeart() {
+      const overlay = document.getElementById('draw-overlay');
+      if (!overlay) return;
+      const octx = overlay.getContext('2d');
+      octx.clearRect(0, 0, overlay.width, overlay.height);
+      if (typeof seedPoints !== 'undefined') seedPoints.length = 0;
+      const cx = overlay.width / 2;
+      const cy = overlay.height / 2;
+      const scale = Math.min(overlay.width, overlay.height) * 0.28;
+      for (let t = 0; t < Math.PI * 2; t += 0.06) {
+        const x = cx + 16 * Math.pow(Math.sin(t), 3) * scale / 17;
+        const y = cy - (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t)) * scale / 17;
+        if (typeof seedPoints !== 'undefined') seedPoints.push({ x, y });
+        octx.fillStyle = '#000';
+        octx.fillRect(x, y, 2, 2);
+      }
+      if (typeof buildManifold === 'function' && typeof seedPoints !== 'undefined') {
+        buildManifold(seedPoints);
+      }
+    }
+
     document.getElementById('pcb-real-run').addEventListener('click', () => {
       const source = src.value || '';
       if (!source.trim()) return;
       out.textContent = '';
+      const trimmed = source.trim();
+
+      // E>.<3 -- heart curve into manifold
+      if (trimmed === 'E>.<3') {
+        manifestHeart();
+        appendOut('E>.<3: heart manifold built');
+        status.textContent = 'OK.';
+        return;
+      }
+
+      // JavaScript eval -- input looks like code (contains = . or ()
+      // mirrors toy console REPL behavior
+      if (/[=\.\(]/.test(trimmed)) {
+        try {
+          const result = eval(trimmed);
+          if (result !== undefined) appendOut(String(result));
+          else appendOut('done');
+          status.textContent = 'OK.';
+        } catch(e) {
+          appendOut('ERR: ' + e.message);
+          status.textContent = 'ERROR.';
+        }
+        manifestASCII(trimmed);
+        return;
+      }
+
+      // PCB language parse -- everything else
       try {
         const tokens = scan(source);
         const results = interp.run(tokens);
@@ -737,6 +823,7 @@
           });
         }
         status.textContent = 'OK.';
+        manifestASCII(source);
       } catch(e) {
         appendOut('ERR: ' + e.message);
         status.textContent = 'ERROR.';
