@@ -7,4 +7,4 @@ deploy:
   script:
     - sudo /usr/local/bin/deploy-www.sh cuppcb .
   rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^\d+\.\d+\.\d+$/'
