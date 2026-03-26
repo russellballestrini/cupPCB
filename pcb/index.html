@@ -32,6 +32,25 @@
         .m-val { font-family: monospace; color: #68ff9a; font-size: 8px; }
     </style>
     <style>
+        /* MOBILE */
+        @media (max-width: 768px) {
+            #main { grid-template-columns: 1fr; grid-template-rows: 44vh 1fr; }
+            #viewport-container { height: 44vh; position: relative; overflow: hidden; }
+            #sidebar { width: 100%; border-left: none; border-top: 1px solid var(--w-border); display: flex; flex-direction: row; flex-wrap: wrap; gap: 6px; max-height: calc(56vh - 50px); }
+            .module { min-width: calc(50% - 3px); flex: 1; }
+            #pcb-container { min-width: 100%; }
+            #draw-overlay { left: 10px; top: 10px; width: calc(100% - 20px) !important; height: calc(44vh - 20px) !important; }
+            #pcb-source { height: 44px; }
+            #pcb-output { height: 30px; }
+            * { font-size: 10px; }
+            .btn { padding: 10px 7px; }
+            .btn-pcb { padding: 8px; }
+        }
+        @media (max-width: 480px) {
+            .module { min-width: 100%; }
+        }
+    </style>
+    <style>
         #boot-overlay {
             position: fixed; inset: 0; z-index: 9999;
             background: #000;
@@ -438,5 +457,33 @@ window.onload = init;
 })();
 </script>
 <script src="pcb-real.js"></script>
+<script>
+(function () {
+    function resizeAll() {
+        const container = document.getElementById('viewport');
+        if (!container) return;
+        const w = container.clientWidth, h = container.clientHeight;
+        if (w < 1 || h < 1) return;
+        if (typeof renderer !== 'undefined' && renderer) {
+            renderer.setSize(w, h);
+            if (typeof camera !== 'undefined' && camera) {
+                camera.aspect = w / h;
+                camera.updateProjectionMatrix();
+            }
+        }
+        const ov = document.getElementById('draw-overlay');
+        if (ov) {
+            const r = ov.getBoundingClientRect();
+            if (r.width > 1 && r.height > 1) {
+                ov.width  = Math.round(r.width);
+                ov.height = Math.round(r.height);
+            }
+        }
+    }
+    window.addEventListener('resize', resizeAll);
+    window.addEventListener('orientationchange', function () { setTimeout(resizeAll, 200); });
+    setTimeout(resizeAll, 1800);
+})();
+</script>
 </body>
 </html>
