@@ -701,14 +701,6 @@ function resizeAll() {
             camera.updateProjectionMatrix();
         }
     }
-    const ov = document.getElementById('draw-overlay');
-    if (ov) {
-        const r = ov.getBoundingClientRect();
-        if (r.width > 1 && r.height > 1) {
-            ov.width  = Math.round(r.width);
-            ov.height = Math.round(r.height);
-        }
-    }
 }
 window.addEventListener('resize', resizeAll);
 window.addEventListener('orientationchange', function() { setTimeout(resizeAll, 200); });
