@@ -1,0 +1,34 @@
+digraph release {
+    graph [
+        bgcolor="white"
+        fontname="monospace"
+        fontsize=11
+        rankdir=LR
+        pad=0.3
+        splines=ortho
+    ]
+    node [
+        shape=plaintext
+        fontname="monospace"
+        fontsize=11
+        margin=0.1
+    ]
+    edge [
+        color="black"
+        arrowsize=0.6
+        penwidth=0.8
+        fontname="monospace"
+        fontsize=9
+    ]
+
+    tag   [label="git tag X.Y.Z"]
+    ci    [label="gitlab-ci\ntriggers"]
+    ver   [label="write\nversion.json"]
+    dep   [label="deploy-www.sh\ncuppcb"]
+    live  [label="live"]
+
+    tag -> ci   [xlabel=" semver match"]
+    ci  -> ver
+    ver -> dep
+    dep -> live
+}
