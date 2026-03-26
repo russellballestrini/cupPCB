@@ -1,0 +1,64 @@
+// SEW Dataflow — print-ready, black ink on white
+digraph dataflow {
+    graph [
+        rankdir=LR
+        bgcolor=white
+        fontname="Helvetica"
+        fontsize=10
+        pad=0.4
+        nodesep=0.5
+        ranksep=0.7
+    ]
+    node [
+        fontname="Helvetica"
+        fontsize=9
+        style=filled
+        fillcolor=white
+        color=black
+        penwidth=1
+        shape=box
+    ]
+    edge [
+        fontname="Helvetica"
+        fontsize=8
+        color=black
+        fontcolor="#444444"
+        penwidth=0.8
+    ]
+
+    draw    [label="DRAW\n→ seedPoints[]"]
+    sample  [label="SAMPLE\nm=32 points"]
+    sym2    [label="SYM²(X)\nu×v grid\nm² vertices" fillcolor="#f0f0f0"]
+    embed   [label="EMBED → R³\n(mid_x, mid_y,\n|p−q|)" fillcolor="#f0f0f0"]
+    tris    [label="TRIANGULATE\n2(m−1)² faces"]
+    adj     [label="ADJACENCY\nG=(V,E)"]
+    hbuf    [label="HEAT BUFFER\nh : V → R≥0" fillcolor="#e8e8e8" penwidth=1.5]
+    diffuse [label="DIFFUSE\nh'[i] = avg(N(i))×0.96\nper frame" fillcolor="#e8e8e8"]
+    oracle  [label="ORACLE\nw = eval(expr)"]
+    deform  [label="DEFORM\nz[i] += h[i]×w"]
+    render  [label="RENDER\nThree.js / WebGL"]
+    seam    [label="SEAM  Δ={u=v}\nred line" style=dashed]
+
+    progs   [label="PROGRAMS\nheat[i] += x" style=dashed]
+    agents  [label="AGENTS\nheat-seek walk" style=dashed]
+
+    draw    -> sample
+    sample  -> sym2   [label="pairs {X[u],X[v]}"]
+    sym2    -> embed   [label="mid + sep"]
+    embed   -> tris
+    tris    -> adj
+    adj     -> hbuf   [label="init zeros"]
+    hbuf    -> diffuse
+    diffuse -> hbuf   [label="h←h'" style=dashed]
+    diffuse -> deform [label="h[i]"]
+    oracle  -> deform [label="w"]
+    deform  -> render
+    embed   -> seam   [label="u=v diagonal"]
+    seam    -> render
+
+    progs   -> hbuf   [label="additive +=" style=dashed]
+    agents  -> hbuf   [label="+= 8.0/step" style=dashed]
+    adj     -> agents [label="N(v)" style=dashed]
+
+    render  -> draw   [label="user sees" style=dotted constraint=false]
+}
