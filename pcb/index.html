@@ -13,9 +13,9 @@
             --w-text: #ffffff; --pcb-gold: #ffd700; --pcb-bg: #000000;
         }
         * { box-sizing: border-box; font-size: 9px; color: var(--w-text); }
-        body { margin: 0; background: #050508; font-family: "Courier New", monospace; display: grid; grid-template-rows: 50px 1fr; height: 100vh; overflow: hidden; }
-        #header { padding: 0 20px; border-bottom: 1px solid var(--w-border); display: flex; justify-content: space-between; align-items: center; background: var(--w-panel); z-index: 100; }
-        #main { display: grid; grid-template-columns: 1fr 420px; grid-template-rows: 1fr; position: relative; height: 100%; overflow: hidden; }
+        body { margin: 0; background: #050508; font-family: "Courier New", monospace; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #header { flex: 0 0 50px; padding: 0 20px; border-bottom: 1px solid var(--w-border); display: flex; justify-content: space-between; align-items: center; background: var(--w-panel); z-index: 100; }
+        #main { flex: 1 1 0; min-height: 0; display: grid; grid-template-columns: 1fr 420px; position: relative; overflow: hidden; }
         #viewport { background: var(--w-bg); position: absolute; inset: 0; touch-action: none; }
 
         #draw-overlay { position: absolute; top: 10px; left: 10px; border: 1px solid var(--w-border); background: rgba(255,255,255,0.7); z-index: 1000; cursor: crosshair; touch-action: none; }

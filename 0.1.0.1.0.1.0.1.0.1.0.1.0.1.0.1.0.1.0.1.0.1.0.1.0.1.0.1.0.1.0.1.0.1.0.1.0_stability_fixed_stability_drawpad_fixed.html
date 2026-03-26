@@ -21,12 +21,13 @@
             margin: 0;
             background: #050508;
             font-family: "Courier New", monospace;
-            display: grid;
-            grid-template-rows: 50px 1fr;
+            display: flex;
+            flex-direction: column;
             height: 100vh;
             overflow: hidden;
         }
         #header {
+            flex: 0 0 50px;
             padding: 0 20px;
             border-bottom: 1px solid var(--w-border);
             display: flex;
@@ -36,11 +37,11 @@
             z-index: 100;
         }
         #main {
+            flex: 1 1 0;
+            min-height: 0;
             display: grid;
             grid-template-columns: 1fr 420px;
-            grid-template-rows: 1fr;
             position: relative;
-            height: 100%;
             overflow: hidden;
         }
         #viewport {
