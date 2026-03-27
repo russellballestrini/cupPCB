@@ -340,6 +340,31 @@ dissolves and the workbench is revealed.
 | `audio`              | `audio.mic` `audio.synth`             | FFT → heat, manifold dances to sound              |
 | `flow`               | `flow.start` `flow.storm`             | Noise flow field, particle streams leave trails   |
 | `langton`            | `ant.start` `ant.turbo` `ant.ants 4`  | Langton's ant — emergent highways after ~10k steps|
+| `moad-demo`          | `moad.run` `moad.pause` `moad.reset`  | CWE-407 live: POCKET O(n²) vs KNOT O(1) — shape is the proof |
+
+---
+
+## 8.1 MOAD: The CWE-407 Companion
+
+The `moad-demo` program is a SEW-resident benchmark of **CWE-407** — the sedimentary defect in
+which a list is used where a set belongs inside graph traversal code.
+
+Two implementations run in the same animation frame:
+
+- **POCKET** — the unpatched path: `Array.includes(n)` before each insertion. O(n) per call,
+  O(n²) total. This is the pattern confirmed in 50+ sites across 25+ ecosystems: javac, GHC,
+  TypeScript, FRRouting, PostgreSQL, MongoDB, Erlang, pip, Cargo, and others.
+- **KNOT** — the patched path: `Set.has(n)` before each insertion. O(1) per call, O(n) total.
+  The fix is structurally identical across all affected ecosystems: replace the list with a
+  hash-backed set.
+
+A grouped bar chart renders cost per step. POCKET's bars climb quadratically; KNOT's stay flat.
+At n=2000 the ratio is typically 100×–200× in favor of KNOT. The manifold receives a heat spike
+proportional to POCKET's defect cost each step — making the O(n²) growth visible as geometry.
+
+This program is the bridge between the SEW manifold and the CWE-407 research corpus
+(`undefect.` / java-topology). The same defect class, visualized here as a heat signal on a
+symmetric product manifold built from the user's own drawn points.
 
 ---
 
