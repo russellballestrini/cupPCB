@@ -1,0 +1,1043 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>UNMARIO // DRAW YOUR LEVEL</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#000; overflow:hidden; font-family:"Courier New",monospace; color:#ffd700; }
+
+        /* ── draw screen ─────────────────────── */
+        #draw-screen {
+            position:fixed; inset:0; z-index:100;
+            display:flex; flex-direction:column; background:#050508;
+        }
+        #draw-header {
+            flex:0 0 auto; padding:14px 20px 8px;
+            display:flex; justify-content:space-between; align-items:center;
+            border-bottom:1px solid #1a1a1a;
+        }
+        #draw-title  { font-size:11px; letter-spacing:0.18em; }
+        #draw-count  { font-size:9px; color:#444; letter-spacing:0.1em; }
+        #draw-wrap   { flex:1 1 0; position:relative; overflow:hidden; cursor:crosshair; touch-action:none; }
+        #draw-canvas { display:block; width:100%; height:100%; }
+        #draw-hint   {
+            position:absolute; inset:0; display:flex; flex-direction:column;
+            justify-content:center; align-items:center; gap:10px; pointer-events:none;
+        }
+        #draw-hint-text {
+            font-size:9px; color:#1e1e1e; letter-spacing:0.14em;
+            text-align:center; line-height:2.4;
+        }
+        #draw-footer {
+            flex:0 0 auto; padding:10px 20px; display:flex; gap:8px; align-items:center;
+            border-top:1px solid #0d0d0d;
+        }
+        .draw-btn {
+            padding:10px 16px; background:#000; border:1px solid #222;
+            color:#555; font-family:"Courier New"; font-size:9px;
+            letter-spacing:0.1em; cursor:pointer; text-transform:uppercase;
+        }
+        .draw-btn:hover { border-color:#888; color:#ccc; }
+        #btn-play {
+            margin-left:auto; padding:12px 28px;
+            background:#000; border:2px solid #9400d3; color:#9400d3;
+            font-family:"Courier New"; font-size:11px; letter-spacing:0.15em; cursor:pointer;
+            box-shadow:0 0 18px rgba(148,0,211,0.35); text-transform:uppercase;
+        }
+        #btn-play:hover { background:#9400d3; color:#fff; box-shadow:0 0 30px rgba(148,0,211,0.7); }
+
+        /* ── game screen ─────────────────────── */
+        #game-screen { position:fixed; inset:0; display:none; }
+        #vp { width:100%; height:100%; }
+
+        #hud {
+            position:fixed; top:14px; left:18px;
+            color:#ffd700; font-size:10px; line-height:2.2;
+            pointer-events:none; letter-spacing:0.05em;
+        }
+        .dim { color:#443300; }
+        #depth-hud {
+            position:fixed; top:14px; right:18px;
+            font-size:9px; line-height:2; pointer-events:none;
+            text-align:right; letter-spacing:0.05em;
+        }
+        #layer-label  { color:#6644cc; }
+        #layer-detail { color:#332255; }
+        #pipe-hint    { color:#224422; }
+        #companions-hud {
+            position:fixed; top:110px; right:18px;
+            font-size:9px; line-height:2; pointer-events:none; text-align:right;
+        }
+        #flash-msg {
+            position:fixed; top:44%; left:50%; transform:translate(-50%,-50%);
+            color:#ffd700; font-size:13px; letter-spacing:0.15em;
+            pointer-events:none; opacity:0; transition:opacity 0.1s;
+        }
+        #over-msg {
+            position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+            color:#ffd700; font-size:15px; text-align:center; line-height:2.2;
+            pointer-events:none; display:none; letter-spacing:0.1em;
+        }
+        #controls-hint {
+            position:fixed; bottom:14px; left:18px;
+            color:#1a1a1a; font-size:9px; pointer-events:none; line-height:1.8;
+        }
+        #prox-tip {
+            position:fixed; pointer-events:none; font-size:9px;
+            text-align:center; line-height:1.8;
+            transform:translate(-50%,-100%); display:none; letter-spacing:0.05em;
+        }
+        #btn-redraw {
+            position:fixed; top:14px; left:50%; transform:translateX(-50%);
+            padding:6px 14px; background:#000; border:1px solid #222;
+            color:#333; font-family:"Courier New"; font-size:9px;
+            letter-spacing:0.1em; cursor:pointer; z-index:200; text-transform:uppercase;
+        }
+        #btn-redraw:hover { border-color:#9400d3; color:#9400d3; }
+
+        /* chat */
+        #chat-box {
+            position:fixed; bottom:52px; left:50%; transform:translateX(-50%);
+            width:400px; max-width:94vw; background:#04000e;
+            border:1px solid #332266; z-index:200; display:none;
+        }
+        #chat-header {
+            padding:6px 10px; display:flex; justify-content:space-between;
+            align-items:center; border-bottom:1px solid #221144; font-size:9px; letter-spacing:0.08em;
+        }
+        #chat-friend-name { font-size:10px; font-weight:bold; }
+        #chat-api-badge   { font-size:8px; color:#333; cursor:default; }
+        #chat-close-btn   { color:#443; font-size:9px; cursor:pointer; padding:0 4px; }
+        #chat-close-btn:hover { color:#ffd700; }
+        #chat-log {
+            height:110px; overflow-y:auto; padding:8px 10px;
+            color:#777; font-size:9px; line-height:2;
+        }
+        #chat-log .entry-friend { color:#aaa; }
+        #chat-log .entry-player { color:#ffd700; }
+        #chat-log .entry-system { color:#443; }
+        #chat-input-row { display:flex; border-top:1px solid #221144; }
+        #chat-input {
+            flex:1; background:#000; border:none; outline:none;
+            color:#ffd700; padding:6px 10px; font-family:"Courier New"; font-size:9px;
+        }
+        #chat-send-btn {
+            background:#000; border:none; border-left:1px solid #221144;
+            color:#443; padding:0 10px; cursor:pointer; font-size:9px; font-family:"Courier New";
+        }
+        #chat-send-btn:hover { color:#ffd700; }
+        #chat-recruit-row {
+            border-top:1px solid #1a0a33; padding:5px 10px;
+            font-size:8px; display:none; justify-content:space-between; align-items:center;
+        }
+        #chat-recruit-label { color:#554; }
+        #chat-recruit-btn {
+            background:#000; border:1px solid #443388; color:#9966ff;
+            padding:3px 8px; cursor:pointer; font-family:"Courier New"; font-size:8px;
+        }
+        #chat-recruit-btn:hover { border-color:#ffd700; color:#ffd700; }
+
+        /* mobile controls */
+        #mobile-controls {
+            position:fixed; bottom:0; left:0; right:0;
+            display:none; justify-content:space-between; align-items:flex-end;
+            padding:12px 16px 22px; pointer-events:none; z-index:300;
+        }
+        .mc-btn {
+            width:62px; height:62px; background:rgba(0,0,0,0.55);
+            border:1px solid #2a2a2a; color:#666; font-size:20px;
+            display:flex; align-items:center; justify-content:center;
+            border-radius:4px; pointer-events:all; cursor:pointer;
+            user-select:none; -webkit-user-select:none;
+        }
+        .mc-btn:active { background:rgba(148,0,211,0.25); border-color:#9400d3; color:#fff; }
+        #mc-move { display:flex; gap:8px; }
+        @media (max-width:768px) {
+            #mobile-controls { display:flex; }
+            #controls-hint   { display:none; }
+        }
+    </style>
+</head>
+<body>
+
+<!-- ═══════════════ DRAW SCREEN ═══════════════ -->
+<div id="draw-screen">
+    <div id="draw-header">
+        <div id="draw-title">UNMARIO // DRAW YOUR LEVEL</div>
+        <div id="draw-count">0 seeds</div>
+    </div>
+    <div id="draw-wrap">
+        <canvas id="draw-canvas"></canvas>
+        <div id="draw-hint">
+            <div id="draw-hint-text">
+                CLICK + DRAG TO PAINT SEED POINTS<br>
+                spread wide = long level &nbsp;|&nbsp; scatter = varied terrain
+            </div>
+        </div>
+    </div>
+    <div id="draw-footer">
+        <button class="draw-btn" id="btn-clear">CLEAR</button>
+        <button class="draw-btn" id="btn-defaults">DEFAULTS</button>
+        <button id="btn-play">&#9654; PLAY</button>
+    </div>
+</div>
+
+<!-- ═══════════════ GAME SCREEN ═══════════════ -->
+<div id="game-screen">
+    <div id="vp"></div>
+
+    <div id="hud">
+        UNMARIO // SYM2<br>
+        <span class="dim">SCORE </span><span id="score">0</span><br>
+        <span class="dim">LIVES </span><span id="lives">III</span><br>
+        <span class="dim">GEMS  </span><span id="gems">0</span>
+    </div>
+    <div id="depth-hud">
+        <div id="layer-label">SURFACE</div>
+        <div id="layer-detail">Sym&#178; open region</div>
+        <div id="pipe-hint">&#8595;+K pipe down</div>
+    </div>
+    <div id="companions-hud"></div>
+    <div id="flash-msg"></div>
+    <div id="over-msg"></div>
+    <div id="prox-tip"></div>
+
+    <div id="chat-box">
+        <div id="chat-header">
+            <span id="chat-friend-name">---</span>
+            <span id="chat-api-badge">API:OFF</span>
+            <span id="chat-close-btn" onclick="closeChat()">ESC</span>
+        </div>
+        <div id="chat-log"></div>
+        <div id="chat-input-row">
+            <input id="chat-input" type="text" placeholder="speak... (or api:KEY to connect Claude)" autocomplete="off" spellcheck="false">
+            <button id="chat-send-btn" onclick="submitChat()">SEND</button>
+        </div>
+        <div id="chat-recruit-row">
+            <span id="chat-recruit-label">recruit this companion?</span>
+            <button id="chat-recruit-btn" onclick="recruitCurrent()">RECRUIT [R]</button>
+        </div>
+    </div>
+
+    <div id="controls-hint">
+        &#8592; &#8594; move &nbsp; SPACE/&#8593; jump &nbsp; &#8595;+K pipe down &nbsp; &#8593;+K pipe up &nbsp; J/E chat &nbsp; R restart &nbsp; Q redraw
+    </div>
+    <button id="btn-redraw" onclick="goRedraw()">REDRAW</button>
+
+    <div id="mobile-controls">
+        <div id="mc-move">
+            <div class="mc-btn" id="mc-left">&#9664;</div>
+            <div class="mc-btn" id="mc-right">&#9654;</div>
+        </div>
+        <div class="mc-btn" id="mc-jump">&#9650;</div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// DRAW PHASE
+// ============================================================
+const drawCanvas = document.getElementById('draw-canvas');
+const dctx = drawCanvas.getContext('2d');
+let rawPts = [];
+let drawing = false;
+
+function resizeDraw() {
+    const wrap = document.getElementById('draw-wrap');
+    drawCanvas.width  = wrap.clientWidth;
+    drawCanvas.height = wrap.clientHeight;
+    paintDraw();
+}
+
+function paintDraw() {
+    dctx.clearRect(0, 0, drawCanvas.width, drawCanvas.height);
+    // faint column guides
+    dctx.strokeStyle = '#0e0e0e';
+    dctx.lineWidth = 1;
+    for (let i = 1; i < 8; i++) {
+        const x = (drawCanvas.width / 8) * i;
+        dctx.beginPath(); dctx.moveTo(x, 0); dctx.lineTo(x, drawCanvas.height); dctx.stroke();
+    }
+    // seed dots
+    for (const p of rawPts) {
+        dctx.fillStyle = '#ffd700';
+        dctx.beginPath();
+        dctx.arc(p.x, p.y, 3, 0, Math.PI * 2);
+        dctx.fill();
+    }
+    document.getElementById('draw-count').textContent = rawPts.length + ' seeds';
+    document.getElementById('draw-hint').style.display = rawPts.length > 0 ? 'none' : '';
+}
+
+function addPt(e) {
+    const r = drawCanvas.getBoundingClientRect();
+    const x = (e.clientX != null ? e.clientX : e.touches[0].clientX) - r.left;
+    const y = (e.clientY != null ? e.clientY : e.touches[0].clientY) - r.top;
+    const last = rawPts[rawPts.length - 1];
+    if (last && Math.hypot(x - last.x, y - last.y) < 9) return;
+    rawPts.push({ x, y });
+    paintDraw();
+}
+
+drawCanvas.addEventListener('pointerdown', e => { drawCanvas.setPointerCapture(e.pointerId); drawing = true; addPt(e); });
+drawCanvas.addEventListener('pointermove', e => { if (drawing) addPt(e); });
+drawCanvas.addEventListener('pointerup',   () => { drawing = false; });
+
+document.getElementById('btn-clear').onclick = () => { rawPts = []; paintDraw(); };
+
+// default seeds — 5 horizontal clusters (same as original UNMARIO)
+const DEFAULT_SEEDS = (function() {
+    const s = [];
+    for (const cx of [18, 52, 90, 128, 162])
+        for (let k = 0; k < 8; k++)
+            s.push({ x: cx + (k - 3.5) * 3, y: 100 });
+    return s;
+})();
+
+document.getElementById('btn-defaults').onclick = () => {
+    rawPts = DEFAULT_SEEDS.map(p => ({
+        x: (p.x / 200) * drawCanvas.width,
+        y: (p.y / 200) * drawCanvas.height,
+    }));
+    paintDraw();
+};
+
+document.getElementById('btn-play').onclick = startGame;
+
+window.addEventListener('resize', () => {
+    resizeDraw();
+    if (renderer) {
+        const c = document.getElementById('vp');
+        renderer.setSize(c.clientWidth, c.clientHeight);
+        camera.aspect = c.clientWidth / c.clientHeight;
+        camera.updateProjectionMatrix();
+    }
+});
+
+// normalize drawn points into seed coordinate space
+function normSeeds(pts) {
+    if (pts.length < 5) return DEFAULT_SEEDS;
+    let x0=Infinity, x1=-Infinity, y0=Infinity, y1=-Infinity;
+    for (const p of pts) {
+        if (p.x<x0) x0=p.x; if (p.x>x1) x1=p.x;
+        if (p.y<y0) y0=p.y; if (p.y>y1) y1=p.y;
+    }
+    // need meaningful horizontal spread for a playable level
+    if (x1 - x0 < drawCanvas.width * 0.12) return DEFAULT_SEEDS;
+    const sx = 180 / (x1 - x0);
+    const sy = y1 > y0 ? 90 / (y1 - y0) : 1;
+    return pts.map(p => ({
+        x: (p.x - x0) * sx + 10,
+        y: (p.y - y0) * sy + 5,
+    }));
+}
+
+function goRedraw() {
+    gameRunning = false;
+    document.getElementById('game-screen').style.display = 'none';
+    document.getElementById('draw-screen').style.display = 'flex';
+    resizeDraw();
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+let SEEDS = DEFAULT_SEEDS.slice();
+let gameRunning    = false;
+let gameBooted     = false;
+
+function startGame() {
+    SEEDS = normSeeds(rawPts);
+    document.getElementById('draw-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    if (!gameBooted) {
+        gameBooted = true;
+        init();
+    } else {
+        rebuildLevel();
+    }
+    gameRunning = true;
+}
+
+// ============================================================
+// CONSTANTS
+// ============================================================
+const M         = 32;
+const GRAVITY   = 0.9;
+const JUMP_VZ   = 24;
+const MOVE_SPD  = 9;
+const PLAYER_H  = 55;
+const PIPE_CD   = 55;
+const LAYER_GAP = 90;
+const ORACLE    = '0.9 + Math.sin(t * 0.006 + d * 1.5) * 0.18';
+const CHAT_RANGE = 200;
+
+let LEVEL_LEFT  = -1220;
+let LEVEL_RIGHT =  1120;
+
+const LAYER_BG   = [new THREE.Color(0x060010), new THREE.Color(0x030009), new THREE.Color(0x020006), new THREE.Color(0x010003)];
+const LAYER_WIRE = [0x3344aa, 0x553388, 0x771144, 0xaa2200];
+const LAYER_NAMES = [
+    ['SURFACE',       'Sym\u00b2 open region',   '\u2193+K pipe down'],
+    ['SUBSURFACE',    'approaching seam',          '\u2191+K pipe up  \u00b7  \u2193+K deeper'],
+    ['DEEP',          'near-diagonal locus',       '\u2191+K pipe up  \u00b7  \u2193+K deeper'],
+    ['SEAM ADJACENT', 'degenerate territory',      '\u2191+K pipe up'],
+];
+
+const FRIEND_INFO = [
+    { name:'VERDANT',  colorHex:'#68ff9a', threeColor:0x68ff9a, personality:'calm topologist. guides with mathematical precision.', abilityDesc:'pipe cooldown halved' },
+    { name:'EMBER',    colorHex:'#ff6644', threeColor:0xff6644, personality:'fiery, tracks heat flows, warns of hot zones.', abilityDesc:'heat warnings active' },
+    { name:'AZURE',    colorHex:'#00ddff', threeColor:0x00ddff, personality:'mysterious, knows the underground layers.', abilityDesc:'layer count shown' },
+    { name:'AURELIUS', colorHex:'#ccaa00', threeColor:0xccaa00, personality:'wise elder, knows where treasure is hidden.', abilityDesc:'gem radius doubled' },
+    { name:'VESPER',   colorHex:'#cc44ff', threeColor:0xcc44ff, personality:'philosophical, contemplates Z2 symmetry.', abilityDesc:'jump height boosted' },
+];
+
+// ============================================================
+// THREE.JS STATE
+// ============================================================
+let scene, camera, renderer, tick = 0;
+let manifoldMesh = null, seamLine = null;
+let originalVertices = [], adjacency = [], heat = [];
+let friends = [], collectibles = [];
+
+// ============================================================
+// PLAYER STATE
+// ============================================================
+const player = { x:0, z:0, vx:0, vz:0, onGround:false, layer:0, pipeCooldown:0, lives:3, score:0, gems:0, dead:false, won:false };
+let playerMesh = null;
+const keys = {};
+let chatInputFocused = false;
+
+document.addEventListener('keydown', e => {
+    if (chatInputFocused) return;
+    keys[e.code] = true;
+    if (e.code === 'KeyR') fullReset();
+    if (e.code === 'KeyQ') goRedraw();
+    if (e.code === 'KeyE' || e.code === 'KeyJ') toggleChat();
+    if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
+});
+document.addEventListener('keyup', e => { if (!chatInputFocused) keys[e.code] = false; });
+
+// mobile touch controls
+(function() {
+    const map = [['mc-left','ArrowLeft'], ['mc-right','ArrowRight'], ['mc-jump','Space']];
+    map.forEach(([id, code]) => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        el.addEventListener('touchstart', e => { e.preventDefault(); keys[code] = true; }, { passive:false });
+        el.addEventListener('touchend',   e => { e.preventDefault(); keys[code] = false; }, { passive:false });
+        el.addEventListener('mousedown',  () => { keys[code] = true; });
+        el.addEventListener('mouseup',    () => { keys[code] = false; });
+        el.addEventListener('mouseleave', () => { keys[code] = false; });
+    });
+})();
+
+// ============================================================
+// CHAT
+// ============================================================
+const chatState = { open:false, friendIdx:-1 };
+
+function getApiKey() { return localStorage.getItem('unmario_api_key') || ''; }
+function saveApiKey(k) { localStorage.setItem('unmario_api_key', k); }
+
+function updateApiBadge() {
+    const el = document.getElementById('chat-api-badge');
+    el.textContent = getApiKey() ? 'API:ON' : 'API:OFF';
+    el.style.color  = getApiKey() ? '#446644' : '#333';
+}
+
+function appendChat(who, msg, cls) {
+    const log = document.getElementById('chat-log');
+    const d = document.createElement('div');
+    d.className = 'entry-' + cls;
+    d.textContent = who + ': ' + msg;
+    log.appendChild(d);
+    while (log.children.length > 8) log.removeChild(log.firstChild);
+    log.scrollTop = log.scrollHeight;
+}
+
+function openChat(fi) {
+    if (fi < 0 || fi >= friends.length) return;
+    chatState.open = true; chatState.friendIdx = fi;
+    const info = FRIEND_INFO[fi];
+    const nameEl = document.getElementById('chat-friend-name');
+    nameEl.textContent = info.name; nameEl.style.color = info.colorHex;
+    document.getElementById('chat-log').innerHTML = '';
+    document.getElementById('chat-recruit-row').style.display = 'none';
+    updateApiBadge();
+    document.getElementById('chat-box').style.display = 'block';
+    appendChat(info.name, getScriptedLine(fi, true), 'friend');
+    setTimeout(() => document.getElementById('chat-input').focus(), 50);
+}
+
+function closeChat() {
+    chatState.open = false;
+    document.getElementById('chat-box').style.display = 'none';
+    document.getElementById('chat-input').blur();
+    chatInputFocused = false;
+    for (const k of Object.keys(keys)) keys[k] = false;
+}
+
+function submitChat() {
+    const input = document.getElementById('chat-input');
+    const msg = input.value.trim();
+    if (!msg) return;
+    input.value = '';
+    if (msg.startsWith('api:')) {
+        saveApiKey(msg.slice(4).trim());
+        updateApiBadge();
+        appendChat('SYSTEM', getApiKey() ? 'API key saved.' : 'API key cleared.', 'system');
+        return;
+    }
+    const fi = chatState.friendIdx;
+    if (fi < 0) return;
+    appendChat('YOU', msg, 'player');
+    document.getElementById('chat-recruit-row').style.display = 'flex';
+    const f = friends[fi];
+    document.getElementById('chat-recruit-label').textContent = (f && f.recruited) ? 'companion active' : 'recruit this companion?';
+    document.getElementById('chat-recruit-btn').textContent  = (f && f.recruited) ? 'RELEASE [R]' : 'RECRUIT [R]';
+    if (getApiKey()) {
+        appendChat(FRIEND_INFO[fi].name, '...', 'system');
+        callFrontier(msg, fi).then(reply => {
+            const log = document.getElementById('chat-log');
+            const last = log.lastChild;
+            if (last && last.textContent.endsWith('...')) log.removeChild(last);
+            appendChat(FRIEND_INFO[fi].name, reply || getScriptedLine(fi, false), 'friend');
+        });
+    } else {
+        appendChat(FRIEND_INFO[fi].name, getScriptedLine(fi, false), 'friend');
+    }
+}
+
+function recruitCurrent() {
+    const fi = chatState.friendIdx;
+    if (fi < 0 || fi >= friends.length) return;
+    const f = friends[fi]; const info = FRIEND_INFO[fi];
+    f.recruited = !f.recruited;
+    appendChat('SYSTEM', f.recruited ? info.name + ' recruited. ' + info.abilityDesc + '.' : info.name + ' released.', 'system');
+    document.getElementById('chat-recruit-btn').textContent  = f.recruited ? 'RELEASE [R]' : 'RECRUIT [R]';
+    document.getElementById('chat-recruit-label').textContent = f.recruited ? 'companion active' : 'recruit this companion?';
+    updateCompanionsHUD();
+}
+
+document.addEventListener('keydown', e => {
+    if (chatState.open && e.code === 'KeyR')   { recruitCurrent(); return; }
+    if (chatState.open && e.code === 'Escape') { closeChat(); return; }
+});
+
+function toggleChat() {
+    if (chatState.open) { closeChat(); return; }
+    const fi = nearestFriendIdx(CHAT_RANGE);
+    if (fi >= 0) openChat(fi);
+}
+
+// ============================================================
+// SCRIPTED LINES
+// ============================================================
+function getScriptedLine(fi, greet) {
+    const gs = {
+        layer: player.layer, gems: player.gems,
+        px: Math.round(player.x),
+        maxHeat: heat.length ? Math.max(...Array.from(heat)) : 0,
+        layers: getGroundLayers(player.x).length,
+    };
+    const pools = [
+        greet ? ['The manifold holds you. Every seed point you drew is now terrain.', 'You built this world. Walk it carefully.']
+              : [gs.layer > 0 ? 'The seam grows nearer.' : 'The manifold breathes. Your own geometry, alive.',
+                 gs.maxHeat > 150 ? 'Heat maps the topology. Follow it or flee.' : 'Cool here. Explore.',
+                 'I was born at a vertex. Between those events: the walk.'],
+        greet ? ['HOT. Thermal traces strong here.', 'I track heat flows. Stay close.']
+              : [gs.maxHeat > 200 ? 'WARNING: heat peak near x=' + gs.px : 'Heat is low. We can move.',
+                 gs.layer > 1 ? 'Deep layers hold the oldest heat.' : 'Surface thermal readings nominal.'],
+        greet ? ['You found me. Few players look below the surface.', 'The underground is the interior of Sym\u00b2.']
+              : [gs.layer === 0 ? 'Down+K opens the pipe.' : 'Layer ' + gs.layer + ' of ' + gs.layers + ' at your x.',
+                 'Between layers you stand in the interior of the symmetric product.'],
+        greet ? ['I have walked every vertex of your drawing. Ask me where treasure hides.', 'Long chords hold the most gems.']
+              : [gs.gems < 6 ? 'Gems settle where z is high. Elevated terrain.' : gs.gems + ' gems. Good instincts.',
+                 gs.px < 0 ? 'Cross the center for richer deposits.' : 'You near the right cluster.'],
+        greet ? ['The seam is the fixed locus of the Z\u2082 involution.', 'Your drawing became Sym\u00b2. You walk unordered pairs.']
+              : [gs.layer === 0 ? 'The seam: fixed point of (u,v) \u2194 (v,u).' : 'You exist in the interior of the symmetric product.',
+                 gs.layer > 1 ? 'The deeper you go, the closer the two seeds that define your position.' : 'You walk unordered space. That is the paradox.'],
+    ];
+    const arr = pools[fi] || pools[0];
+    return arr[Math.floor(Math.random() * arr.length)];
+}
+
+async function callFrontier(msg, fi) {
+    const key = getApiKey();
+    if (!key) return null;
+    const info = FRIEND_INFO[fi];
+    try {
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type':'application/json', 'x-api-key':key, 'anthropic-version':'2023-06-01' },
+            body: JSON.stringify({
+                model: 'claude-haiku-4-5-20251001', max_tokens: 120,
+                system: `You are ${info.name}, a ${info.colorHex} sphere in UNMARIO. Personality: ${info.personality} The player drew the level by hand — the terrain is their own handwriting made into Sym\u00b2 geometry. Layer: ${player.layer}, gems: ${player.gems}. Reply 1-2 short sentences. Stay in character. 7-bit ASCII only.`,
+                messages: [{ role:'user', content:msg }],
+            }),
+        });
+        const data = await resp.json();
+        return data.content && data.content[0] ? data.content[0].text : null;
+    } catch(e) { return null; }
+}
+
+// ============================================================
+// PROXIMITY
+// ============================================================
+function worldToScreen(p3) {
+    const v = p3.clone().project(camera);
+    return { x:(v.x*0.5+0.5)*window.innerWidth, y:(-v.y*0.5+0.5)*window.innerHeight };
+}
+
+function nearestFriendIdx(range) {
+    let best=-1, bd=range;
+    for (let i=0; i<friends.length; i++) {
+        const f=friends[i];
+        const d=Math.hypot(player.x-f.mesh.position.x, player.z-f.mesh.position.z);
+        if (d<bd) { bd=d; best=i; }
+    }
+    return best;
+}
+
+function updateProximityTip() {
+    const tip = document.getElementById('prox-tip');
+    if (chatState.open) { tip.style.display='none'; return; }
+    const fi = nearestFriendIdx(CHAT_RANGE);
+    if (fi < 0) { tip.style.display='none'; return; }
+    const f=friends[fi], info=FRIEND_INFO[fi];
+    const s = worldToScreen(f.mesh.position.clone().add(new THREE.Vector3(0,0,60)));
+    if (s.x<0||s.x>window.innerWidth||s.y<0||s.y>window.innerHeight) { tip.style.display='none'; return; }
+    tip.style.left=s.x+'px'; tip.style.top=s.y+'px'; tip.style.display='block';
+    tip.innerHTML=`<span style="color:${info.colorHex}">${info.name}</span><br><span style="color:#333">E to chat</span>`;
+}
+
+function updateCompanionsHUD() {
+    const el = document.getElementById('companions-hud');
+    const active = friends.filter(f=>f.recruited);
+    el.innerHTML = active.map(f=>
+        `<div style="color:${FRIEND_INFO[f.ci].colorHex}">${FRIEND_INFO[f.ci].name}</div>` +
+        `<div style="color:#222;font-size:8px">${FRIEND_INFO[f.ci].abilityDesc}</div>`
+    ).join('');
+}
+
+// ============================================================
+// MANIFOLD BUILD
+// ============================================================
+function buildManifold() {
+    if (manifoldMesh) { scene.remove(manifoldMesh); manifoldMesh.geometry.dispose(); manifoldMesh.material.dispose(); manifoldMesh=null; }
+    if (seamLine)     { scene.remove(seamLine);     seamLine.geometry.dispose();     seamLine=null; }
+
+    const sampled=[];
+    for (let i=0; i<M; i++) sampled.push(SEEDS[Math.floor(i*SEEDS.length/M)]);
+    const ctr=sampled.reduce((a,p)=>({x:a.x+p.x,y:a.y+p.y}),{x:0,y:0});
+    ctr.x/=M; ctr.y/=M;
+
+    const pos=[], idx=[];
+    for (let u=0; u<M; u++) {
+        for (let v=0; v<M; v++) {
+            const p1=sampled[u], p2=sampled[v];
+            pos.push(
+                ((p1.x+p2.x)/2 - ctr.x) * 14,
+                -((p1.y+p2.y)/2 - ctr.y) * 14,
+                Math.sqrt((p1.x-p2.x)**2 + (p1.y-p2.y)**2) * 8
+            );
+        }
+    }
+    for (let u=0; u<M-1; u++) {
+        for (let v=0; v<M-1; v++) {
+            const a=u*M+v, b=(u+1)*M+v, c=u*M+v+1, d=(u+1)*M+v+1;
+            idx.push(a,b,c, b,d,c);
+        }
+    }
+
+    const geo=new THREE.BufferGeometry();
+    geo.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));
+    geo.setIndex(idx); geo.computeVertexNormals();
+    manifoldMesh=new THREE.Mesh(geo,new THREE.MeshPhongMaterial({color:LAYER_WIRE[0],wireframe:true,transparent:true,opacity:0.75}));
+    scene.add(manifoldMesh);
+    originalVertices=[...pos];
+
+    // seam line (diagonal u==v)
+    const sp=[];
+    for (let u=0; u<M; u++) { const i=(u*M+u)*3; sp.push(pos[i],pos[i+1],pos[i+2]); }
+    seamLine=new THREE.Line(
+        Object.assign(new THREE.BufferGeometry(), {}).setAttribute('position',new THREE.Float32BufferAttribute(sp,3)),
+        new THREE.LineBasicMaterial({color:0xff2222,opacity:0.9,transparent:true})
+    );
+    scene.add(seamLine);
+
+    // adjacency
+    adjacency=Array.from({length:pos.length/3},()=>[]);
+    for (let i=0; i<idx.length; i+=3) {
+        const a=idx[i],b=idx[i+1],c=idx[i+2];
+        adjacency[a].push(b); adjacency[b].push(a);
+        adjacency[b].push(c); adjacency[c].push(b);
+        adjacency[a].push(c); adjacency[c].push(a);
+    }
+    adjacency=adjacency.map(n=>[...new Set(n)]);
+    heat=new Float32Array(pos.length/3);
+
+    // compute level bounds from actual geometry
+    let minX=Infinity, maxX=-Infinity;
+    for (let i=0; i<pos.length; i+=3) { if(pos[i]<minX) minX=pos[i]; if(pos[i]>maxX) maxX=pos[i]; }
+    LEVEL_LEFT  = minX - 80;
+    LEVEL_RIGHT = maxX + 80;
+}
+
+function rebuildLevel() {
+    buildManifold();
+    player.lives=3; player.score=0; player.gems=0;
+    collectibles.forEach(c=>scene.remove(c.mesh)); collectibles=[];
+    friends.forEach(f=>scene.remove(f.mesh));      friends=[];
+    makePlayer(); placeAtStart(); spawnCollectibles();
+    camX=player.x; camZ=player.z+440;
+    setTimeout(()=>{ for(let i=0;i<5;i++) friends.push(new Friend(i)); },800);
+}
+
+// ============================================================
+// LAYER SYSTEM
+// ============================================================
+function getGroundLayers(px) {
+    if (!manifoldMesh) return [];
+    const pos=manifoldMesh.geometry.attributes.position.array;
+    const ia=manifoldMesh.geometry.index.array;
+    const raw=[];
+    for (let i=0; i<ia.length; i+=3) {
+        const ai=ia[i]*3, bi=ia[i+1]*3, ci=ia[i+2]*3;
+        const edges=[[pos[ai],pos[ai+2],pos[bi],pos[bi+2]],[pos[bi],pos[bi+2],pos[ci],pos[ci+2]],[pos[ci],pos[ci+2],pos[ai],pos[ai+2]]];
+        for (const [x1,z1,x2,z2] of edges) {
+            if (px>=Math.min(x1,x2) && px<=Math.max(x1,x2) && x2!==x1)
+                raw.push(z1+(px-x1)/(x2-x1)*(z2-z1));
+        }
+    }
+    if (!raw.length) return [];
+    raw.sort((a,b)=>b-a);
+    const layers=[];
+    for (const z of raw)
+        if (!layers.length || layers[layers.length-1]-z>=LAYER_GAP) layers.push(z);
+    return layers;
+}
+
+function floorZ(px, li) {
+    const l=getGroundLayers(px);
+    if (!l.length) return -800;
+    return l[Math.min(li!=null?li:player.layer, l.length-1)];
+}
+
+function ceilingZ(px) {
+    if (player.layer===0) return Infinity;
+    const l=getGroundLayers(px);
+    if (!l.length||player.layer-1>=l.length) return Infinity;
+    return l[player.layer-1];
+}
+
+// ============================================================
+// FLASH / PIPE
+// ============================================================
+let flashTimer=0;
+function showFlash(msg,color) {
+    const el=document.getElementById('flash-msg');
+    el.textContent=msg; el.style.color=color||'#ffd700'; el.style.opacity='1'; flashTimer=60;
+}
+
+function tryPipeDown() {
+    if (player.pipeCooldown>0||!player.onGround||player.dead||player.won) return;
+    const l=getGroundLayers(player.x);
+    if (l.length<=player.layer+1||l[player.layer+1]<5) { showFlash('NO PIPE','#ff4444'); return; }
+    player.layer++; player.vz=-14; player.onGround=false;
+    player.pipeCooldown=friends.some(f=>f.ci===0&&f.recruited)?Math.floor(PIPE_CD/2):PIPE_CD;
+    showFlash('LAYER '+player.layer,'#cc88ff'); updateDepthHUD();
+}
+
+function tryPipeUp() {
+    if (player.pipeCooldown>0||player.layer<=0||player.dead||player.won) return;
+    player.layer--; player.vz=JUMP_VZ*1.25; player.onGround=false;
+    player.pipeCooldown=friends.some(f=>f.ci===0&&f.recruited)?Math.floor(PIPE_CD/2):PIPE_CD;
+    showFlash(player.layer===0?'SURFACE':'LAYER '+player.layer,'#ffd700'); updateDepthHUD();
+}
+
+function updateDepthHUD() {
+    const n=Math.min(player.layer,LAYER_NAMES.length-1);
+    const info=LAYER_NAMES[n];
+    document.getElementById('layer-label').textContent=info[0];
+    document.getElementById('layer-detail').textContent=info[1];
+    const azure=friends.some(f=>f.ci===2&&f.recruited);
+    const l=azure?getGroundLayers(player.x):null;
+    document.getElementById('pipe-hint').textContent=info[2]+(l?'  ['+l.length+' layers]':'');
+    const tints=['#6644cc','#9944aa','#cc4466','#ff6633'];
+    document.getElementById('layer-label').style.color=tints[n];
+    document.getElementById('layer-detail').style.color='#'+new THREE.Color(tints[n]).multiplyScalar(0.5).getHexString();
+}
+
+// ============================================================
+// PLAYER MESH
+// ============================================================
+function makePlayer() {
+    if (playerMesh) scene.remove(playerMesh);
+    const g=new THREE.Group();
+    g.add(new THREE.Mesh(new THREE.BoxGeometry(44,12,52),new THREE.MeshPhongMaterial({color:0xffd700,emissive:0x221100})));
+    const hat=new THREE.Mesh(new THREE.BoxGeometry(36,10,16),new THREE.MeshPhongMaterial({color:0xff2200,emissive:0x110800}));
+    hat.position.set(0,0,34); g.add(hat);
+    const eG=new THREE.BoxGeometry(8,6,8), eM=new THREE.MeshPhongMaterial({color:0xffffff});
+    for (const dx of [-12,12]) { const e=new THREE.Mesh(eG,eM); e.position.set(dx,-8,14); g.add(e); }
+    scene.add(g); playerMesh=g;
+}
+
+function placeAtStart() {
+    const sx=LEVEL_LEFT+80;
+    player.layer=0;
+    const gh=floorZ(sx,0);
+    player.x=sx; player.z=(gh>-800?gh:0)+PLAYER_H+160;
+    player.vx=0; player.vz=0; player.onGround=false;
+    player.dead=false; player.won=false; player.pipeCooldown=0;
+    if (playerMesh) playerMesh.visible=true;
+    document.getElementById('over-msg').style.display='none';
+    closeChat(); updateDepthHUD();
+    friends.forEach(f=>{f.recruited=false;}); updateCompanionsHUD();
+}
+
+function fullReset() {
+    player.lives=3; player.score=0; player.gems=0;
+    collectibles.forEach(c=>{c.mesh.visible=true;c.collected=false;});
+    placeAtStart();
+}
+
+// ============================================================
+// COLLECTIBLES
+// ============================================================
+function spawnCollectibles() {
+    collectibles.forEach(c=>scene.remove(c.mesh)); collectibles=[];
+    let placed=0, tries=0;
+    while (placed<18 && tries<3000) {
+        tries++;
+        const vi=Math.floor(Math.random()*(originalVertices.length/3));
+        const vx=originalVertices[vi*3], vz=originalVertices[vi*3+2];
+        if (vz<80||vz>1150) continue;
+        if (collectibles.some(c=>Math.abs(c.bx-vx)<75)) continue;
+        const mesh=new THREE.Mesh(new THREE.OctahedronGeometry(13,0),new THREE.MeshPhongMaterial({color:0xffee00,emissive:0x554400}));
+        mesh.position.set(vx,0,vz+38); scene.add(mesh);
+        collectibles.push({mesh,bx:vx,bz:vz,collected:false}); placed++;
+    }
+}
+
+// ============================================================
+// FRIENDS
+// ============================================================
+class Friend {
+    constructor(ci) {
+        this.ci=ci; this.recruited=false;
+        this.vIdx=Math.floor(Math.random()*(originalVertices.length/3));
+        this.mesh=new THREE.Mesh(new THREE.SphereGeometry(15,7,7),new THREE.MeshPhongMaterial({color:FRIEND_INFO[ci].threeColor}));
+        scene.add(this.mesh);
+        this.p=new THREE.Vector3(); this.life=700+Math.random()*500;
+        this.orbitOffset=ci*(Math.PI*2/5);
+    }
+    step() {
+        if (this.recruited) {
+            const a=tick*0.025+this.orbitOffset;
+            this.mesh.position.set(player.x+Math.cos(a)*140, 0, player.z+PLAYER_H+35+Math.sin(a)*65);
+            this.p.copy(this.mesh.position);
+            if (heat.length>this.vIdx) heat[this.vIdx]+=4.0;
+            this.mesh.material.emissiveIntensity=0.15+0.1*Math.sin(tick*0.08+this.orbitOffset);
+            this.mesh.material.emissive.setHex(FRIEND_INFO[this.ci].threeColor);
+        } else {
+            this.mesh.material.emissiveIntensity=0;
+            const nb=adjacency[this.vIdx]||[];
+            if (nb.length>0) {
+                let best=nb[0];
+                for (const n of nb) if (heat[n]>heat[best]) best=n;
+                this.vIdx=Math.random()<0.13?nb[Math.floor(Math.random()*nb.length)]:best;
+            }
+            if (heat.length>this.vIdx) heat[this.vIdx]+=9.0;
+            const p=manifoldMesh.geometry.attributes.position.array;
+            this.p.set(p[this.vIdx*3],p[this.vIdx*3+1],p[this.vIdx*3+2]+18);
+            this.mesh.position.copy(this.p);
+            this.life-=0.05;
+            if (this.life<=0) { this.vIdx=Math.floor(Math.random()*(originalVertices.length/3)); this.life=700+Math.random()*500; }
+        }
+    }
+}
+
+// ============================================================
+// CHAT INPUT EVENTS
+// ============================================================
+(function() {
+    const inp=document.getElementById('chat-input');
+    inp.addEventListener('focus',  ()=>{chatInputFocused=true;});
+    inp.addEventListener('blur',   ()=>{chatInputFocused=false;});
+    inp.addEventListener('keydown', e=>{
+        if (e.key==='Enter')  { submitChat(); e.preventDefault(); }
+        if (e.key==='Escape') { closeChat(); e.preventDefault(); }
+        e.stopPropagation();
+    });
+})();
+
+// ============================================================
+// INIT
+// ============================================================
+function init() {
+    scene=new THREE.Scene();
+    scene.background=LAYER_BG[0].clone();
+    scene.fog=new THREE.Fog(0x060010,3500,9000);
+
+    const c=document.getElementById('vp');
+    camera=new THREE.PerspectiveCamera(50,c.clientWidth/c.clientHeight,1,50000);
+    camera.up.set(0,0,1);
+
+    renderer=new THREE.WebGLRenderer({antialias:true});
+    renderer.setSize(c.clientWidth,c.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    c.appendChild(renderer.domElement);
+
+    scene.add(new THREE.AmbientLight(0xffffff,0.45));
+    const sun=new THREE.DirectionalLight(0xffeedd,1.3); sun.position.set(600,-800,2000); scene.add(sun);
+    const fill=new THREE.PointLight(0x2233ff,1.2,7000); fill.position.set(-600,-500,400); scene.add(fill);
+
+    buildManifold(); makePlayer(); placeAtStart(); spawnCollectibles();
+    camX=player.x; camZ=player.z+440;
+    setTimeout(()=>{ for(let i=0;i<5;i++) friends.push(new Friend(i)); },1000);
+    animate();
+}
+
+// ============================================================
+// ANIMATE
+// ============================================================
+let camX=0, camZ=600;
+const livesStr=['','I','II','III','IV'];
+
+function animate() {
+    requestAnimationFrame(animate);
+    if (!gameRunning) return;
+    tick++;
+
+    if (flashTimer>0) { flashTimer--; document.getElementById('flash-msg').style.opacity=Math.min(1,flashTimer/15).toString(); }
+    if (player.pipeCooldown>0) player.pipeCooldown--;
+
+    // manifold heat + animation
+    let maxH=0;
+    if (manifoldMesh && heat.length>0) {
+        const pos=manifoldMesh.geometry.attributes.position.array;
+        const next=new Float32Array(heat.length);
+        for (let i=0;i<heat.length;i++) {
+            const nb=adjacency[i]||[];
+            let s=heat[i]; for (const j of nb) s+=heat[j];
+            next[i]=(s/(nb.length+1))*0.97;
+        }
+        heat=next;
+        for (let i=0;i<heat.length;i++) {
+            const cx=originalVertices[i*3],cy=originalVertices[i*3+1];
+            const d=Math.sqrt(cx*cx+cy*cy)*0.001, t=tick;
+            let w=1; try{w=eval(ORACLE)||1;}catch(e){}
+            pos[i*3]=originalVertices[i*3];
+            pos[i*3+1]=originalVertices[i*3+1];
+            pos[i*3+2]=originalVertices[i*3+2]+heat[i]*w;
+            if (heat[i]>maxH) maxH=heat[i];
+        }
+        manifoldMesh.geometry.attributes.position.needsUpdate=true;
+        manifoldMesh.material.opacity=0.55+Math.sin(tick*0.015)*0.1;
+        manifoldMesh.material.color.setHex(LAYER_WIRE[Math.min(player.layer,LAYER_WIRE.length-1)]);
+        seamLine.material.opacity=Math.min(1,0.5+player.layer*0.15);
+    }
+
+    if (friends.some(f=>f.ci===1&&f.recruited)&&maxH>300&&tick%40===0) showFlash('HEAT WARNING','#ff4400');
+    friends.forEach(f=>f.step());
+
+    const gemR=friends.some(f=>f.ci===3&&f.recruited)?130:65;
+    for (const c of collectibles) {
+        if (c.collected) continue;
+        c.mesh.rotation.z+=0.04; c.mesh.rotation.x+=0.02;
+        c.mesh.position.z=floorZ(c.bx,0)+38;
+        if (Math.hypot(player.x-c.mesh.position.x, player.z-c.mesh.position.z)<gemR) {
+            c.collected=true; c.mesh.visible=false; player.gems++; player.score+=100;
+        }
+    }
+
+    // input
+    if (!player.dead&&!player.won&&!chatInputFocused) {
+        player.vx=0;
+        if (keys['ArrowLeft']||keys['KeyA'])  player.vx=-MOVE_SPD;
+        if (keys['ArrowRight']||keys['KeyD']) player.vx=MOVE_SPD;
+        const jm=friends.some(f=>f.ci===4&&f.recruited)?1.35:1.0;
+        if ((keys['Space']||keys['ArrowUp']||keys['KeyW']||keys['KeyK'])&&player.onGround) {
+            if (keys['KeyK']&&(keys['ArrowUp']||keys['KeyW'])) tryPipeUp();
+            else { player.vz=JUMP_VZ*jm; player.onGround=false; }
+        }
+        if ((keys['ArrowDown']||keys['KeyS'])&&keys['KeyK']) tryPipeDown();
+        if ((keys['ArrowUp']||keys['KeyW'])&&keys['KeyK']&&!player.onGround&&player.layer>0) tryPipeUp();
+    }
+
+    // physics
+    if (!player.dead&&!player.won) {
+        player.vz-=GRAVITY;
+        player.x+=player.vx; player.z+=player.vz;
+        if (player.x<LEVEL_LEFT-200) player.x=LEVEL_LEFT-200;
+
+        const gh=floorZ(player.x);
+        if (player.z<=gh+PLAYER_H&&player.vz<=0) {
+            player.z=gh+PLAYER_H; player.vz=0; player.onGround=true;
+            const prog=Math.round(Math.max(0,(player.x-LEVEL_LEFT)/(LEVEL_RIGHT-LEVEL_LEFT)*500));
+            if (prog+player.gems*100>player.score) player.score=prog+player.gems*100;
+        } else { player.onGround=false; }
+
+        if (player.layer>0) {
+            const ceil=ceilingZ(player.x);
+            if (ceil<Infinity&&player.z>=ceil-PLAYER_H-8&&player.vz>0) { player.z=ceil-PLAYER_H-8; player.vz=0; }
+        }
+
+        if (player.x>LEVEL_RIGHT) {
+            player.won=true; player.score+=1000+player.gems*50;
+            document.getElementById('over-msg').innerHTML=
+                'SYM\u00b2 COMPLETE<br><span style="font-size:11px;color:#aaa">SCORE: '+player.score+
+                '<br>GEMS: '+player.gems+'/18<br>MAX DEPTH: '+player.layer+
+                '<br><br>R restart &nbsp;&nbsp; Q redraw</span>';
+            document.getElementById('over-msg').style.display='block';
+        }
+
+        if (player.z<-900) {
+            player.dead=true; player.lives--;
+            if (player.lives<=0) {
+                document.getElementById('over-msg').innerHTML=
+                    'GAME OVER<br><span style="font-size:11px;color:#888">SCORE: '+player.score+
+                    '<br><br>R restart &nbsp;&nbsp; Q redraw</span>';
+                document.getElementById('over-msg').style.display='block';
+            } else { setTimeout(()=>placeAtStart(),700); }
+        }
+    }
+
+    if (playerMesh) {
+        playerMesh.position.set(player.x,0,player.z);
+        playerMesh.rotation.x=player.vx*0.015;
+        const sq=player.onGround?0.88:1.0;
+        playerMesh.scale.set(1,1,sq+(1-sq)*Math.min(1,Math.abs(player.vz)*0.05));
+        playerMesh.visible=!player.dead||Math.floor(tick/5)%2===0;
+    }
+
+    const bgI=Math.min(player.layer,LAYER_BG.length-1);
+    scene.background.lerp(LAYER_BG[bgI],0.04);
+    scene.fog.color.lerp(LAYER_BG[bgI],0.04);
+
+    camX+=(player.x-camX)*0.08;
+    camZ+=(player.z+440-camZ)*0.06;
+    camera.position.set(camX,-950,camZ);
+    camera.lookAt(camX,0,camZ-180);
+
+    updateProximityTip();
+
+    if (tick%12===0) {
+        document.getElementById('score').textContent=player.score;
+        document.getElementById('gems').textContent=player.gems;
+        document.getElementById('lives').textContent=livesStr[Math.max(0,Math.min(4,player.lives))];
+        updateDepthHUD();
+    }
+
+    renderer.render(scene,camera);
+}
+
+window.onload = resizeDraw;
+</script>
+</body>
+</html>
