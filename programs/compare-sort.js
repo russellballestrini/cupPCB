@@ -1,5 +1,5 @@
-// COMPARE_SORT — broken vs working bubble sort, side by side in lockstep
-// Broken:  j < n - i     — one step too far, comparison enters sorted zone
+// COMPARE_SORT — slight defect vs working bubble sort, side by side in lockstep
+// Slight defect:  j < n - i     — one step too far, comparison enters sorted zone
 // Working: j < n - i - 1 — correct bound, stops at boundary
 // Based on unworkbench.com/programs/bubble-sort.js and test/broken_test.py
 // Kernel globals in scope: pcb, scene, heat, adjacency, flickerRate, wobbleBase, friendList
@@ -10,14 +10,15 @@
     const mod = document.createElement('div');
     mod.className = 'module';
     mod.id = 'pgm-compare-sort';
+    mod.style.display = 'none';
     mod.innerHTML = [
         '<h3>COMPARE SORT</h3>',
 
         '<div style="display:flex;gap:4px;margin-bottom:3px;">',
 
-            // broken
+            // slight defect
             '<div style="flex:1;">',
-                '<div style="font-size:7px;color:#ff4400;margin-bottom:2px;">BROKEN  j &lt; n-i</div>',
+                '<div style="font-size:7px;color:#ff4400;margin-bottom:2px;">SLIGHT DEFECT  j &lt; n-i</div>',
                 '<div id="cs-broken-bars" style="display:flex;align-items:flex-end;gap:1px;height:52px;',
                     'background:#000;border:1px solid #331100;padding:2px;"></div>',
                 '<div style="font-size:7px;color:#555;margin-top:2px;">',
@@ -53,18 +54,18 @@
     sidebar.insertBefore(mod, sidebar.firstChild);
 
     // --- precompute steps for one variant ---
-    // bound: 'broken' uses j < n-i, 'working' uses j < n-i-1
+    // bound: 'slight_defect' uses j < n-i, 'working' uses j < n-i-1
     function precompute(a, variant) {
         const s = [], n = a.length; let b = [...a];
         for (let i = 0; i < n - 1; i++) {
             let sw = false;
-            // broken goes one too far: j < n-i  →  last j = n-i-1, accesses b[n-i] (sorted zone)
+            // slight defect goes one too far: j < n-i  →  last j = n-i-1, accesses b[n-i] (sorted zone)
             // working stops correctly: j < n-i-1 →  last j = n-i-2
-            const limit = variant === 'broken' ? n - i : n - i - 1;
+            const limit = variant === 'slight_defect' ? n - i : n - i - 1;
             for (let j = 0; j < limit; j++) {
-                const inSorted = j >= n - i - 1; // true when broken cursor is in sorted zone
+                const inSorted = j >= n - i - 1; // true when defect cursor is in sorted zone
                 s.push({ type: 'cmp', j, arr: [...b], sf: n - i, inSorted });
-                const right = b[j + 1]; // undefined when j = n-i-1 in broken variant
+                const right = b[j + 1]; // undefined when j = n-i-1 in slight_defect variant
                 if (right !== undefined && b[j] > right) {
                     [b[j], b[j + 1]] = [b[j + 1], b[j]];
                     sw = true;
@@ -108,7 +109,7 @@
     }
 
     // --- state ---
-    let arr, brokenSteps, workingSteps, idx, running, timer, bcmp, bswap, wcmp, wswap;
+    let arr, defectSteps, workingSteps, idx, running, timer, bcmp, bswap, wcmp, wswap;
 
     function rand(n) {
         return Array.from({ length: n }, () => Math.floor(Math.random() * 95) + 5);
@@ -117,7 +118,7 @@
     function reset() {
         clearTimeout(timer); running = false;
         arr = rand(20);
-        brokenSteps  = precompute([...arr], 'broken');
+        defectSteps  = precompute([...arr], 'slight_defect');
         workingSteps = precompute([...arr], 'working');
         idx = 0; bcmp = 0; bswap = 0; wcmp = 0; wswap = 0;
         ['cs-bcmp','cs-bswap','cs-wcmp','cs-wswap'].forEach(id => {
@@ -129,7 +130,7 @@
     }
 
     function applyStep() {
-        const bs = brokenSteps[idx];
+        const bs = defectSteps[idx];
         const ws = workingSteps[idx] || workingSteps[workingSteps.length - 1];
 
         renderBars('cs-broken-bars',  bs.arr, bs);
@@ -143,33 +144,35 @@
         if (bs.type === 'done') {
             running = false;
             pcb.log('COMPARE_SORT: DONE.' +
-                ' BROKEN CMP=' + bcmp + ' SWP=' + bswap +
+                ' SLIGHT_DEFECT CMP=' + bcmp + ' SWP=' + bswap +
                 ' WORKING CMP=' + wcmp + ' SWP=' + wswap);
         }
         idx++;
     }
 
     function tick() {
-        if (!running || idx >= brokenSteps.length) { running = false; return; }
+        if (!running || idx >= defectSteps.length) { running = false; return; }
         applyStep();
         if (running) timer = setTimeout(tick, 60);
     }
 
-    document.getElementById('cs-run').onclick   = () => { if (idx >= brokenSteps.length) reset(); running = true; tick(); };
-    document.getElementById('cs-step').onclick  = () => { if (idx < brokenSteps.length) applyStep(); };
+    document.getElementById('cs-run').onclick   = () => { if (idx >= defectSteps.length) reset(); running = true; tick(); };
+    document.getElementById('cs-step').onclick  = () => { if (idx < defectSteps.length) applyStep(); };
     document.getElementById('cs-reset').onclick = reset;
 
     // --- PCB commands ---
     const _origRun = pcb.run.bind(pcb);
     pcb.run = function (src) {
         const cmd = src.trim();
-        if (cmd === 'csort.run')   { if (idx >= brokenSteps.length) reset(); running = true; tick(); return; }
-        if (cmd === 'csort.step')  { if (idx < brokenSteps.length) applyStep(); return; }
+        if (cmd === 'csort.show')  { mod.style.display = ''; pcb.log('COMPARE_SORT: visible'); return; }
+        if (cmd === 'csort.hide')  { mod.style.display = 'none'; pcb.log('COMPARE_SORT: hidden'); return; }
+        if (cmd === 'csort.run')   { if (idx >= defectSteps.length) reset(); running = true; tick(); return; }
+        if (cmd === 'csort.step')  { if (idx < defectSteps.length) applyStep(); return; }
         if (cmd === 'csort.reset') { reset(); return; }
         _origRun(src);
     };
 
     reset();
-    pcb.log('PGM: COMPARE_SORT loaded. cmds: csort.run / csort.step / csort.reset');
+    pcb.log('PGM: COMPARE_SORT loaded (hidden). cmds: csort.show / csort.hide / csort.run / csort.step / csort.reset');
 
 })();
