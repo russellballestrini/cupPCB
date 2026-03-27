@@ -1,7 +1,7 @@
 ---
 title: "SEW: Symmetric Embedding Workbench"
 subtitle: "A Manifold Simulator Kernel from First Principles"
-author: "unworkbench.com"
+author: "russell@unturf.com · brackishbert@gmail.com · foxhop.net · TimeHexOn.com · cuppcb.com"
 date: "2026-03-24"
 ---
 
@@ -372,4 +372,10 @@ That is the whole system.
 
 ---
 
-*unworkbench.com — permacomputer infrastructure — CC0*
+*unworkbench.com · cuppcb.com — permacomputer infrastructure — MIT*
+
+*truth · freedom · harmony · love*
+
+---
+
+MIT License. Copyright 2026 russell@unturf.com · brackishbert@gmail.com · foxhop.net · TimeHexOn.com · cuppcb.com. Permission is hereby granted, free of charge, to any person obtaining a copy of this document to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies, subject to the above copyright notice and this permission notice being included in all copies or substantial portions.
