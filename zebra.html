@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ZEBRA // cupPCB</title>
+    <style>
+        :root {
+            --w-panel: #0d0d16; --w-border: #333333; --w-text: #ffffff;
+            --res-energy: #00eeff; --res-neon: #68ff9a;
+        }
+        * { box-sizing: border-box; font-size: 9px; color: var(--w-text); }
+        body { margin: 0; background: #050508; font-family: "Courier New", monospace;
+               display: flex; flex-direction: column; align-items: center;
+               justify-content: center; min-height: 100vh; }
+        #header { width: 100%; padding: 0 20px; border-bottom: 1px solid var(--w-border);
+                  display: flex; justify-content: space-between; align-items: center;
+                  background: var(--w-panel); z-index: 100; height: 50px;
+                  position: fixed; top: 0; }
+        #card { background: var(--w-panel); border: 1px solid #1f4d64;
+                padding: 20px; width: 420px; margin-top: 70px; }
+        #card h3 { margin: 0 0 14px 0; font-size: 0.85em; border-bottom: 1px solid #1f4d64;
+                   padding-bottom: 6px; text-transform: uppercase; color: var(--res-energy); }
+        .row { display: flex; justify-content: space-between; align-items: center;
+               gap: 6px; margin-bottom: 10px; }
+        .row span { color: #cfd6ff; }
+        .btn { padding: 7px 14px; background: #111; border: 1px solid var(--w-border);
+               color: #fff; cursor: pointer; text-transform: uppercase; font-family: "Courier New", monospace;
+               font-size: 9px; }
+        .btn:hover { background: #1a1a2e; border-color: var(--res-energy); }
+        .btn.active { background: #112233; border-color: var(--res-neon); color: var(--res-neon); }
+        input[type="file"] { background: #000; border: 1px solid #1f4d64;
+                             color: var(--res-neon); padding: 4px; max-width: 240px; }
+        #status { font-size: 8px; color: #7ea4b8; margin-top: 6px; }
+    </style>
+</head>
+<body>
+<div id="header">
+    <div>ZEBRA // cupPCB</div>
+    <div id="header-status">IDLE</div>
+</div>
+
+<div id="card">
+    <h3>AUDIO_DRIVE</h3>
+    <div class="row">
+        <span>CLIP</span>
+        <input type="file" id="audio-file" accept="audio/*">
+    </div>
+    <div class="row">
+        <span>PLAYBACK</span>
+        <div>
+            <button class="btn" id="audio-play">PLAY</button>
+            <button class="btn" id="audio-stop" style="margin-left:4px;">STOP</button>
+        </div>
+    </div>
+    <div id="status">AUDIO_STATUS: NO_CLIP</div>
+</div>
+
+<script>
+const audioState = {
+    ctx: null,
+    element: null,
+    source: null,
+    ready: false,
+    playing: false,
+    objectUrl: null,
+};
+
+function setStatus(msg) {
+    document.getElementById("status").textContent = "AUDIO_STATUS: " + msg;
+    document.getElementById("header-status").textContent = msg;
+}
+
+function ensureAudioGraph() {
+    if (audioState.ctx) return;
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) { setStatus("WEB_AUDIO_UNAVAILABLE"); return; }
+    audioState.ctx = new AudioCtx();
+    audioState.element = new Audio();
+    audioState.element.crossOrigin = "anonymous";
+    audioState.element.loop = false;
+    audioState.element.preload = "auto";
+    audioState.source = audioState.ctx.createMediaElementSource(audioState.element);
+    audioState.source.connect(audioState.ctx.destination);
+    audioState.element.onended = () => {
+        audioState.playing = false;
+        document.getElementById("audio-play").classList.remove("active");
+        document.getElementById("audio-play").textContent = "PLAY";
+        setStatus("ENDED");
+    };
+}
+
+document.getElementById("audio-file").onchange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    ensureAudioGraph();
+    if (!audioState.ctx) return;
+    if (audioState.objectUrl) URL.revokeObjectURL(audioState.objectUrl);
+    audioState.objectUrl = URL.createObjectURL(file);
+    audioState.element.src = audioState.objectUrl;
+    audioState.element.load();
+    audioState.ready = true;
+    audioState.playing = false;
+    document.getElementById("audio-play").classList.remove("active");
+    document.getElementById("audio-play").textContent = "PLAY";
+    setStatus("CLIP_LOADED: " + file.name);
+};
+
+document.getElementById("audio-play").onclick = async () => {
+    ensureAudioGraph();
+    if (!audioState.ready) { setStatus("NO_CLIP"); return; }
+    if (audioState.ctx.state === "suspended") await audioState.ctx.resume();
+    const btn = document.getElementById("audio-play");
+    if (audioState.playing) {
+        audioState.element.pause();
+        audioState.playing = false;
+        btn.classList.remove("active");
+        btn.textContent = "PLAY";
+        setStatus("PAUSED");
+    } else {
+        try {
+            await audioState.element.play();
+            audioState.playing = true;
+            btn.classList.add("active");
+            btn.textContent = "PAUSE";
+            setStatus("PLAYING: " + (audioState.element.src.split("/").pop() || "..."));
+        } catch(e) {
+            setStatus("PLAY_ERR: " + e.message);
+        }
+    }
+};
+
+document.getElementById("audio-stop").onclick = () => {
+    if (!audioState.element) { setStatus("NO_CLIP"); return; }
+    audioState.element.pause();
+    audioState.element.currentTime = 0;
+    audioState.playing = false;
+    document.getElementById("audio-play").classList.remove("active");
+    document.getElementById("audio-play").textContent = "PLAY";
+    setStatus(audioState.ready ? "STOPPED" : "NO_CLIP");
+};
+</script>
+</body>
+</html>
