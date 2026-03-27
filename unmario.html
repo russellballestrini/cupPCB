@@ -223,7 +223,7 @@
     </div>
 
     <div id="controls-hint">
-        &#8592; &#8594; move &nbsp; SPACE/&#8593; jump &nbsp; &#8595;+K pipe down &nbsp; &#8593;+K pipe up &nbsp; J/E chat &nbsp; R restart &nbsp; Q redraw
+        &#8592; &#8594; move &nbsp; SPACE/&#8593; jump &nbsp; &#8595;/J drop &nbsp; &#8595;+K pipe down &nbsp; &#8593;+K pipe up &nbsp; E chat &nbsp; R restart &nbsp; Q redraw
     </div>
     <button id="btn-redraw" onclick="goRedraw()">REDRAW</button>
 
@@ -406,7 +406,7 @@ let friends = [], collectibles = [];
 // ============================================================
 // PLAYER STATE
 // ============================================================
-const player = { x:0, z:0, vx:0, vz:0, onGround:false, layer:0, pipeCooldown:0, lives:3, score:0, gems:0, dead:false, won:false };
+const player = { x:0, z:0, vx:0, vz:0, onGround:false, layer:0, pipeCooldown:0, lives:3, score:0, gems:0, dead:false, won:false, dropping:false };
 let playerMesh = null;
 const keys = {};
 let chatInputFocused = false;
@@ -416,7 +416,7 @@ document.addEventListener('keydown', e => {
     keys[e.code] = true;
     if (e.code === 'KeyR') fullReset();
     if (e.code === 'KeyQ') goRedraw();
-    if (e.code === 'KeyE' || e.code === 'KeyJ') toggleChat();
+    if (e.code === 'KeyE') toggleChat();
     if (['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.code)) e.preventDefault();
 });
 document.addEventListener('keyup', e => { if (!chatInputFocused) keys[e.code] = false; });
@@ -744,6 +744,13 @@ function showFlash(msg,color) {
     el.textContent=msg; el.style.color=color||'#ffd700'; el.style.opacity='1'; flashTimer=60;
 }
 
+function tryDrop() {
+    if (player.dead||player.won||!player.onGround||player.dropping) return;
+    const l=getGroundLayers(player.x);
+    if (l.length<=player.layer+1) return;
+    player.dropping=true; player.onGround=false; player.vz=-3;
+}
+
 function tryPipeDown() {
     if (player.pipeCooldown>0||!player.onGround||player.dead||player.won) return;
     const l=getGroundLayers(player.x);
@@ -793,7 +800,7 @@ function placeAtStart() {
     const gh=floorZ(sx,0);
     player.x=sx; player.z=(gh>-800?gh:0)+PLAYER_H+160;
     player.vx=0; player.vz=0; player.onGround=false;
-    player.dead=false; player.won=false; player.pipeCooldown=0;
+    player.dead=false; player.won=false; player.pipeCooldown=0; player.dropping=false;
     if (playerMesh) playerMesh.visible=true;
     document.getElementById('over-msg').style.display='none';
     closeChat(); updateDepthHUD();
@@ -964,10 +971,11 @@ function animate() {
         const jm=friends.some(f=>f.ci===4&&f.recruited)?1.35:1.0;
         if ((keys['Space']||keys['ArrowUp']||keys['KeyW']||keys['KeyK'])&&player.onGround) {
             if (keys['KeyK']&&(keys['ArrowUp']||keys['KeyW'])) tryPipeUp();
-            else { player.vz=JUMP_VZ*jm; player.onGround=false; }
+            else { player.dropping=false; player.vz=JUMP_VZ*jm; player.onGround=false; }
         }
         if ((keys['ArrowDown']||keys['KeyS'])&&keys['KeyK']) tryPipeDown();
         if ((keys['ArrowUp']||keys['KeyW'])&&keys['KeyK']&&!player.onGround&&player.layer>0) tryPipeUp();
+        if ((keys['ArrowDown']||keys['KeyJ'])&&!keys['KeyK']&&player.onGround) tryDrop();
     }
 
     // physics
@@ -976,9 +984,10 @@ function animate() {
         player.x+=player.vx; player.z+=player.vz;
         if (player.x<LEVEL_LEFT-200) player.x=LEVEL_LEFT-200;
 
-        const gh=floorZ(player.x);
+        const gh=player.dropping ? floorZ(player.x, player.layer+1) : floorZ(player.x);
         if (player.z<=gh+PLAYER_H&&player.vz<=0) {
             player.z=gh+PLAYER_H; player.vz=0; player.onGround=true;
+            if (player.dropping) { player.layer++; player.dropping=false; updateDepthHUD(); }
             const prog=Math.round(Math.max(0,(player.x-LEVEL_LEFT)/(LEVEL_RIGHT-LEVEL_LEFT)*500));
             if (prog+player.gems*100>player.score) player.score=prog+player.gems*100;
         } else { player.onGround=false; }
