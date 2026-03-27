@@ -235,7 +235,7 @@
   }
 
   // ----------------------------------------------------------
-  // CONTAINER TYPES -- Pocket, Cup, Box
+  // CONTAINER TYPES -- Pocket, Cup, Box, Knot
   // ----------------------------------------------------------
   class PocketInstance {
     constructor() { this.items = []; }
@@ -248,6 +248,11 @@
   class BoxInstance {
     constructor() { this.items = []; }
     toString() { return '[' + this.items.join(', ') + ']'; }
+  }
+  // KnotInstance -- Set-backed. contains/sniatnoc = O(1). Fixes CWE-407 MOAD.
+  class KnotInstance {
+    constructor() { this.items = new Set(); }
+    toString() { return 'knot(' + [...this.items].join(', ') + ')'; }
   }
 
   // ----------------------------------------------------------
@@ -408,6 +413,22 @@
           return b;
         }
 
+        // knot container -- Set-backed, O(1) contains. Syntax: knot(a, b, c)
+        if (tok.type === TT.KNOT || tok.type === TT.TONK) {
+          advance();
+          const k = new KnotInstance();
+          eat(TT.OPENPAREN);
+          skipNewlines();
+          while (!check(TT.CLOSEDPAREN) && !check(TT.EOF)) {
+            k.items.add(parseExpr());
+            skipNewlines();
+            if (check(TT.COMMA)) advance();
+            skipNewlines();
+          }
+          eat(TT.CLOSEDPAREN);
+          return k;
+        }
+
         // math functions
         if (tok.type === TT.SIN || tok.type === TT.NIS) {
           advance(); eat(TT.OPENPAREN);
@@ -556,6 +577,18 @@
 
     containerOp(container, opType, opName, arg) {
       const op = (opName || opType || '').toLowerCase();
+      // KnotInstance -- Set-backed, O(1) for all membership ops
+      if (container instanceof KnotInstance) {
+        if (op === 'size' || op === 'ezis') return container.items.size;
+        if (op === 'empty' || op === 'ytpme') return container.items.size === 0;
+        if (op === 'clear' || op === 'raelc') { container.items.clear(); return null; }
+        if (op === 'add' || op === 'dda' || op === 'push' || op === 'hsup') { container.items.add(arg); return null; }
+        if (op === 'remove' || op === 'evomer') { container.items.delete(arg); return null; }
+        if (op === 'contains' || op === 'sniatnoc') { return container.items.has(arg); } // O(1) -- the fix
+        if (op === 'pop') { const v = container.items.values().next().value; container.items.delete(v); return v !== undefined ? v : null; }
+        return null;
+      }
+      // Array-backed containers (Pocket, Cup, Box) -- O(n) contains, preserved as-is
       if (op === 'size' || op === 'ezis') return container.items.length;
       if (op === 'empty' || op === 'ytpme') return container.items.length === 0;
       if (op === 'clear' || op === 'raelc') { container.items = []; return null; }
@@ -564,7 +597,7 @@
       if (op === 'add' || op === 'dda') { container.items.push(arg); return null; }
       if (op === 'remove' || op === 'evomer') { return container.items.splice(arg, 1)[0]; }
       if (op === 'getat' || op === 'tateg') { return container.items[arg]; }
-      if (op === 'contains' || op === 'sniatnoc') { return container.items.includes(arg); }
+      if (op === 'contains' || op === 'sniatnoc') { return container.items.includes(arg); } // O(n) -- the defect
       return null;
     }
   }
@@ -672,7 +705,7 @@
     sec.className = 'module';
     sec.id = 'pcb-real-section';
     sec.innerHTML =
-      '<h3>POCKET CUP BOX CONSOLE</h3>' +
+      '<h3>POCKET CUP BOX KNOT CONSOLE</h3>' +
 
       // direction toggle
       '<div class="pcb-real-dir">' +
@@ -797,6 +830,15 @@
         return;
       }
 
+      // dot-commands: word.word[...] with no parens — route through pcb.run hooks
+      // (kcjones.locker, sort.run, moad.run, trails.clear, etc.)
+      // skip eval + manifestASCII so the drawing is never overwritten by a command
+      if (/^\w+\.\w+/.test(trimmed) && trimmed.indexOf('(') < 0) {
+        if (typeof pcb !== 'undefined') pcb.run(trimmed);
+        status.textContent = 'OK.';
+        return;
+      }
+
       // JavaScript eval -- input looks like code (contains = . or ()
       // mirrors toy console REPL behavior
       if (/[=\.\(]/.test(trimmed)) {
@@ -805,11 +847,12 @@
           if (result !== undefined) appendOut(String(result));
           else appendOut('done');
           status.textContent = 'OK.';
+          manifestASCII(trimmed);  // only redraw on successful eval
         } catch(e) {
           appendOut('ERR: ' + e.message);
           status.textContent = 'ERROR.';
+          // no manifestASCII on error — preserve the drawing
         }
-        manifestASCII(trimmed);
         return;
       }
 
@@ -887,7 +930,7 @@
     });
     wireUI(interp);
     if (typeof pcb !== 'undefined' && typeof pcb.log === 'function') {
-      pcb.log('PGM: PCB_REAL loaded. FORWARD active. BACKWARD/BOTH toggles present.');
+      pcb.log('PGM: PCB_REAL loaded. FORWARD active. KNOT container live. BACKWARD/BOTH toggles present.');
     }
   }
 

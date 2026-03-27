@@ -710,5 +710,21 @@ window.addEventListener('orientationchange', function() { setTimeout(resizeAll, 
 window.onload = init;
 </script>
 <script src="pcb-real.js"></script>
+<script>
+// auto-load programs after init() runs and pcb is live
+window.addEventListener('load', function () {
+    [
+        'programs/moad-demo.js',
+        'programs/compare-sort.js',
+        'programs/two-manifolds.js',
+        'programs/friend-trails.js',
+        'programs/kcjones.js',
+    ].forEach(function (src) {
+        var s = document.createElement('script');
+        s.src = src;
+        document.body.appendChild(s);
+    });
+});
+</script>
 </body>
 </html>
