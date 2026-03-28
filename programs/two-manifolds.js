@@ -179,6 +179,15 @@
 
     const controls2 = new THREE.OrbitControls(camera2, renderer2.domElement);
 
+    // bidirectional sync — track which side the user actually moved
+    let leftDirty = false, rightDirty = false, syncing = false;
+    controls.addEventListener('change', function () {
+        if (!syncing) leftDirty = true;
+    });
+    controls2.addEventListener('change', function () {
+        if (!syncing) rightDirty = true;
+    });
+
     window.addEventListener('resize', resizeRenderers);
     window.addEventListener('orientationchange', function () { setTimeout(resizeRenderers, 200); });
 
@@ -282,7 +291,7 @@
 
         if (!ready) {
             if (manifoldMesh && originalVertices.length > 0) buildRight();
-            else { if (!syncCameras) controls2.update(); renderer2.render(scene2, camera2); return; }
+            else { controls2.update(); renderer2.render(scene2, camera2); return; }
         }
 
         const fp = originalVertices[0] + originalVertices[7] + originalVertices[333];
@@ -323,13 +332,29 @@
         mesh2.geometry.attributes.position.needsUpdate = true;
         mesh2.material.opacity = 0.55;
 
+        controls2.update();
+
         if (syncCameras) {
-            camera2.position.copy(camera.position);
-            camera2.quaternion.copy(camera.quaternion);
-            camera2.up.copy(camera.up);
-            controls2.target.copy(controls.target);
-        } else {
-            controls2.update();
+            if (leftDirty) {
+                syncing = true;
+                camera2.position.copy(camera.position);
+                camera2.quaternion.copy(camera.quaternion);
+                camera2.up.copy(camera.up);
+                controls2.target.copy(controls.target);
+                controls2.update();
+                syncing = false;
+                leftDirty = false;
+                rightDirty = false;
+            } else if (rightDirty) {
+                syncing = true;
+                camera.position.copy(camera2.position);
+                camera.quaternion.copy(camera2.quaternion);
+                camera.up.copy(camera2.up);
+                controls.target.copy(controls2.target);
+                controls.update();
+                syncing = false;
+                rightDirty = false;
+            }
         }
         renderer2.render(scene2, camera2);
     }
