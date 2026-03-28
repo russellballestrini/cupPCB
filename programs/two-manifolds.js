@@ -177,6 +177,7 @@
     renderer2.domElement.style.cssText = 'width:100%;height:100%;display:block;';
     vp2.appendChild(renderer2.domElement);
     scene2.add(new THREE.AmbientLight(0xffffff, 0.8));
+    window._twinRenderer2 = renderer2;
 
     const controls2 = new THREE.OrbitControls(camera2, renderer2.domElement);
 
@@ -333,9 +334,9 @@
         mesh2.geometry.attributes.position.needsUpdate = true;
         mesh2.material.opacity = 0.55;
 
-        controls2.update();
+        if (!window._rideActive) controls2.update();
 
-        if (syncCameras) {
+        if (!window._rideActive && syncCameras) {
             if (leftDirty) {
                 syncing = true;
                 camera2.position.copy(camera.position);

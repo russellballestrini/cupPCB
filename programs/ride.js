@@ -77,6 +77,7 @@
     function enterRide(f) {
         rideFriend = f;
         rideActive = true;
+        window._rideActive = true;
         hidePicker();
         rideBtn.textContent = 'EXIT \u25a0';
         rideBtn.style.borderColor = '#ff4400';
@@ -97,6 +98,7 @@
 
     function exitRide() {
         rideActive = false;
+        window._rideActive = false;
         rideFriend = null;
         rideBtn.textContent = 'RIDE \u25b6';
         rideBtn.style.borderColor = '#ffd700';
@@ -147,8 +149,8 @@
         if (spd > 0.001) _dir.normalize();
 
         // chase cam: pull back behind friend, lift up
-        const pullBack = Math.max(spd * 6, 220);
-        const liftUp   = 90;
+        const pullBack = Math.max(spd * 4, 80);
+        const liftUp   = 50;
 
         _camPos.copy(f.p)
             .addScaledVector(_dir, -pullBack)
@@ -161,23 +163,38 @@
         camera.up.copy(_worldUp);
         camera.lookAt(_lookAt);
 
-        // sync the twin viewport (two-manifolds right camera) to the same view
-        const cam2 = window._twinCamera2;
-        if (cam2) {
-            cam2.position.copy(_camPos);
-            cam2.up.copy(_worldUp);
-            cam2.quaternion.copy(camera.quaternion);
-            cam2.fov = camera.fov;
-            cam2.updateProjectionMatrix();
-        }
     }
 
-    // inject into renderer.render so camera is set every frame before draw
+    // intercept both renderers so camera is set right before each draw
     const _origRender = renderer.render.bind(renderer);
     renderer.render = function (s, c) {
         applyRideCamera();
         _origRender(s, c);
     };
+
+    // intercept renderer2 once it's exposed by two-manifolds.js
+    function hookRenderer2() {
+        const r2 = window._twinRenderer2;
+        if (!r2 || r2._rideHooked) return;
+        r2._rideHooked = true;
+        const _origRender2 = r2.render.bind(r2);
+        r2.render = function (s, c) {
+            if (rideActive) {
+                const cam2 = window._twinCamera2;
+                if (cam2) {
+                    cam2.position.copy(camera.position);
+                    cam2.quaternion.copy(camera.quaternion);
+                    cam2.up.copy(camera.up);
+                }
+            }
+            _origRender2(s, c);
+        };
+    }
+    // try immediately, then poll until two-manifolds sets it
+    hookRenderer2();
+    const _hookInterval = setInterval(function () {
+        if (window._twinRenderer2) { hookRenderer2(); clearInterval(_hookInterval); }
+    }, 100);
 
     pcb.log('PGM: RIDE loaded. RIDE \u25b6 button top-right. Deploy friends first.');
 
