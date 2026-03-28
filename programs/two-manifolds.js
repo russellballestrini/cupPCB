@@ -18,14 +18,37 @@
     vc.appendChild(vp2);
 
     const divider = document.createElement('div');
-    divider.style.zIndex = '10';
-    divider.style.pointerEvents = 'none';
-    divider.style.background = '#333';
-    divider.style.position = 'absolute';
+    divider.style.cssText = 'position:absolute;z-index:10;pointer-events:none;background:rgba(160,160,160,0.35);';
     vc.appendChild(divider);
 
-    const LABEL_BASE = 'position:absolute;font-family:Courier New,monospace;font-size:10px;background:rgba(0,0,0,0.6);padding:2px 6px;z-index:20;pointer-events:none;';
-    const HUD_BASE   = 'position:absolute;font-family:Courier New,monospace;font-size:11px;color:#fff;background:rgba(0,0,0,0.7);padding:4px 8px;z-index:20;pointer-events:none;white-space:pre;line-height:1.5;';
+    const LABEL_BASE = [
+        'position:absolute',
+        'font-family:Courier New,monospace',
+        'font-size:14px',
+        'font-weight:700',
+        'letter-spacing:0.05em',
+        'text-transform:uppercase',
+        'background:rgba(0,0,0,0.82)',
+        'padding:6px 12px 6px 10px',
+        'z-index:20',
+        'pointer-events:none',
+        'line-height:1.5',
+        'border-left:3px solid',
+    ].join(';') + ';';
+
+    const HUD_BASE = [
+        'position:absolute',
+        'font-family:Courier New,monospace',
+        'font-size:11px',
+        'color:rgba(220,220,220,0.85)',
+        'background:rgba(0,0,0,0.72)',
+        'padding:5px 9px',
+        'z-index:20',
+        'pointer-events:none',
+        'white-space:pre',
+        'line-height:1.7',
+        'border:1px solid rgba(255,255,255,0.08)',
+    ].join(';') + ';';
 
     // --- sync toggle ---
     let syncCameras = true;
@@ -62,11 +85,15 @@
     document.body.appendChild(syncBtn);
 
     const labelLeft = document.createElement('div');
-    labelLeft.textContent = 'MOAD  unpatched  O(n\xb2)';
+    labelLeft.innerHTML =
+        '<span>MOAD &nbsp;UNPATCHED</span>' +
+        '<br><span style="font-size:11px;font-weight:400;opacity:0.75;letter-spacing:0.08em">O(n\xb2) &mdash; chaos grows</span>';
     vc.appendChild(labelLeft);
 
     const labelRight = document.createElement('div');
-    labelRight.textContent = 'patched  O(n)';
+    labelRight.innerHTML =
+        '<span>PATCHED</span>' +
+        '<br><span style="font-size:11px;font-weight:400;opacity:0.75;letter-spacing:0.08em">O(n) &mdash; stays calm</span>';
     vc.appendChild(labelRight);
 
     const hudLeft  = document.createElement('div');
@@ -83,25 +110,25 @@
             divider.style.left   = '0';
             divider.style.top    = '50%';
             divider.style.width  = '100%';
-            divider.style.height = '1px';
+            divider.style.height = '2px';
             divider.style.removeProperty && divider.style.removeProperty('right');
 
-            labelLeft.style.cssText  = LABEL_BASE + 'color:#ff4400;top:6px;left:8px;';
-            labelRight.style.cssText = LABEL_BASE + 'color:#68ff9a;top:calc(50% + 6px);left:8px;';
-            hudLeft.style.cssText    = HUD_BASE + 'top:6px;right:8px;';
-            hudRight.style.cssText   = HUD_BASE + 'top:calc(50% + 6px);right:8px;';
+            labelLeft.style.cssText  = LABEL_BASE + 'border-left-color:#ff4400;color:#ff6633;top:8px;left:8px;';
+            labelRight.style.cssText = LABEL_BASE + 'border-left-color:#68ff9a;color:#68ff9a;top:calc(50% + 8px);left:8px;';
+            hudLeft.style.cssText    = HUD_BASE + 'bottom:8px;right:8px;';
+            hudRight.style.cssText   = HUD_BASE + 'bottom:calc(50% - 8px + 8px);right:8px;';
         } else {
             vp.style.cssText  = 'position:absolute;left:0;top:0;width:50%;height:100%;overflow:hidden;';
             vp2.style.cssText = 'position:absolute;right:0;top:0;width:50%;height:100%;overflow:hidden;';
             divider.style.left   = '50%';
             divider.style.top    = '0';
-            divider.style.width  = '1px';
+            divider.style.width  = '2px';
             divider.style.height = '100%';
 
-            labelLeft.style.cssText  = LABEL_BASE + 'color:#ff4400;bottom:8px;left:8px;';
-            labelRight.style.cssText = LABEL_BASE + 'color:#68ff9a;bottom:8px;right:8px;';
-            hudLeft.style.cssText    = HUD_BASE + 'top:8px;left:8px;';
-            hudRight.style.cssText   = HUD_BASE + 'top:8px;right:8px;';
+            labelLeft.style.cssText  = LABEL_BASE + 'border-left-color:#ff4400;color:#ff6633;top:8px;left:8px;';
+            labelRight.style.cssText = LABEL_BASE + 'border-left-color:#68ff9a;color:#68ff9a;top:8px;right:8px;';
+            hudLeft.style.cssText    = HUD_BASE + 'bottom:8px;left:8px;';
+            hudRight.style.cssText   = HUD_BASE + 'bottom:8px;right:8px;';
         }
     }
 
@@ -180,8 +207,8 @@
         frameR++;
 
         const drift = frameR - frameL;
-        let leftLines  = 'MOAD  frame:' + frameL + '  fps:' + fpsL + '\ndrift:' + (drift >= 0 ? '+' : '') + drift;
-        let rightLines = 'PATCH frame:' + frameR + '  fps:' + fpsR;
+        let leftLines  = 'frame ' + frameL + '  \u2502  ' + fpsL + ' fps\ndrift  ' + (drift >= 0 ? '+' : '') + drift;
+        let rightLines = 'frame ' + frameR + '  \u2502  ' + fpsR + ' fps';
 
         if (typeof friendList !== 'undefined' && heat1 && heat2) {
             leftLines  += '\n';
