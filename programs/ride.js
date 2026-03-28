@@ -65,25 +65,86 @@
 
     function buildPicker() {
         picker.innerHTML = '';
+
+        // EXIT row — only shown while riding
+        if (rideActive) {
+            const exitRow = document.createElement('div');
+            exitRow.style.cssText = 'padding:6px 14px;cursor:pointer;border-left:3px solid #ff4400;color:#ff4400;letter-spacing:0.1em;';
+            exitRow.textContent = 'EXIT RIDE \u25a0';
+            exitRow.onmouseenter = function () { exitRow.style.background = 'rgba(255,68,0,0.12)'; };
+            exitRow.onmouseleave = function () { exitRow.style.background = ''; };
+            exitRow.onclick = function () { exitRide(); };
+            picker.appendChild(exitRow);
+            // divider
+            const sep = document.createElement('div');
+            sep.style.cssText = 'height:1px;background:rgba(255,255,255,0.08);margin:3px 0;';
+            picker.appendChild(sep);
+        }
+
         const friends = (typeof friendList !== 'undefined')
             ? friendList.filter(function (f) { return f.initialized; }) : [];
         if (friends.length === 0) {
-            picker.innerHTML = '<div style="padding:6px 14px;opacity:0.5;">deploy friends first</div>';
+            picker.innerHTML += '<div style="padding:6px 14px;opacity:0.5;">deploy friends first</div>';
             return;
         }
         friends.forEach(function (f, i) {
+            const isCurrent = rideActive && f === rideFriend;
+            const col = '#' + FRIEND_COLORS[f.idx % FRIEND_COLORS.length].toString(16).padStart(6, '0');
             const row = document.createElement('div');
-            row.style.cssText = 'padding:6px 14px;cursor:pointer;border-left:3px solid transparent;letter-spacing:0.1em;';
-            row.textContent = f.id + '  \u2014  observer ' + i;
-            row.onmouseenter = function () { row.style.borderLeftColor = '#ffd700'; row.style.background = 'rgba(255,215,0,0.08)'; };
-            row.onmouseleave = function () { row.style.borderLeftColor = 'transparent'; row.style.background = ''; };
-            row.onclick = function () { enterRide(f); };
+            row.style.cssText = 'padding:6px 14px;cursor:pointer;letter-spacing:0.1em;'
+                + 'border-left:3px solid ' + (isCurrent ? col : 'transparent') + ';'
+                + 'color:' + (isCurrent ? col : '#ffd700') + ';'
+                + (isCurrent ? 'background:rgba(255,255,255,0.05);' : '');
+            row.textContent = f.id + '  \u2014  observer ' + i + (isCurrent ? '  \u25cf' : '');
+            row.onmouseenter = function () { if (!isCurrent) { row.style.borderLeftColor = col; row.style.background = 'rgba(255,215,0,0.08)'; } };
+            row.onmouseleave = function () { if (!isCurrent) { row.style.borderLeftColor = 'transparent'; row.style.background = ''; } };
+            row.onclick = function () {
+                if (isCurrent) { hidePicker(); return; }
+                if (rideActive) { switchFriend(f); } else { enterRide(f); }
+            };
             picker.appendChild(row);
         });
     }
 
     function showPicker() { buildPicker(); picker.style.display = 'block'; }
     function hidePicker()  { picker.style.display = 'none'; }
+
+    // swap friend mid-ride without touching controls/FOV
+    function switchFriend(f) {
+        if (!rideActive || f === rideFriend) return;
+        const prev = rideFriend;
+
+        // restore previous friend
+        prev.mesh.material.color.setHex(FRIEND_COLOR_DEFAULT);
+        if (prev._rideOrigCompute) { prev.compute = prev._rideOrigCompute; delete prev._rideOrigCompute; }
+
+        // mount new friend
+        rideFriend = f;
+        rideBoost  = 0;
+        f._rideOrigCompute = f.compute;
+        f.compute = function () {};
+        f.mesh.material.color.setHex(FRIEND_COLORS[f.idx % FRIEND_COLORS.length]);
+
+        // re-slow all others (new friend is no longer in "other" set, prev is)
+        if (typeof friendList !== 'undefined') {
+            friendList.forEach(function (other) {
+                if (other === f) {
+                    // was being slowed, free it (ride.js now controls it)
+                    if (other._rideOrigApply) { other.apply = other._rideOrigApply; delete other._rideOrigApply; }
+                } else if (!other._rideOrigApply) {
+                    // prev friend needs to be slowed now
+                    other._rideOrigApply = other.apply;
+                    other.apply = function () { this.p.lerp(this.targetP, 0.004); this.mesh.position.copy(this.p); };
+                }
+            });
+        }
+
+        // update button label
+        rideBtn.textContent = '\u25cf ' + f.id;
+
+        hidePicker();
+        if (typeof pcb !== 'undefined') pcb.log('RIDE: switched to ' + f.id);
+    }
 
     // --- enter / exit ---
     function enterRide(f) {
@@ -93,9 +154,9 @@
         window._rideActive = true;
         hidePicker();
 
-        rideBtn.textContent   = 'EXIT \u25a0';
-        rideBtn.style.borderColor = '#ff4400';
-        rideBtn.style.color       = '#ff4400';
+        rideBtn.textContent       = '\u25cf ' + f.id;
+        rideBtn.style.borderColor = '#ffd700';
+        rideBtn.style.color       = '#ffd700';
 
         if (typeof controls !== 'undefined') controls.enabled = false;
 
@@ -174,8 +235,7 @@
 
     rideBtn.onclick = function (e) {
         e.stopPropagation();
-        if (rideActive) { exitRide(); }
-        else { picker.style.display === 'block' ? hidePicker() : showPicker(); }
+        picker.style.display === 'block' ? hidePicker() : showPicker();
     };
     document.addEventListener('click', function (e) {
         if (!rideBtn.contains(e.target) && !picker.contains(e.target)) hidePicker();
