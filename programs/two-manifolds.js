@@ -325,6 +325,7 @@
 
         if (syncCameras) {
             camera2.position.copy(camera.position);
+            camera2.quaternion.copy(camera.quaternion);
             camera2.up.copy(camera.up);
             controls2.target.copy(controls.target);
         } else {
