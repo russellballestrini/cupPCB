@@ -1,55 +1,68 @@
-// RIDE — jump into a friend and chase them first-person across the manifold
-// Sonic / Flash chase cam: camera behind + above, looking at friend's head
+// RIDE — jump into a friend, spacebar to push forward across the manifold
+// Cookie clicker: each SPACE adds boost that decays smoothly into motion
 // Kernel globals in scope: scene, camera, renderer, controls, friendList, pcb
 
 (function () {
 
     let rideActive = false;
     let rideFriend = null;
+    let rideBoost   = 0;
 
-    // --- RIDE button (top-right, gold) ---
+    const BASE_SPEED   = 0.004;   // crawl when idle
+    const BOOST_ADD    = 0.45;    // each spacebar hit
+    const BOOST_MAX    = 0.92;    // cap
+    const BOOST_DECAY  = 0.91;    // friction per frame
+    const ARRIVE_DIST  = 8;       // auto-advance when this close to target
+
+    // --- spacebar ---
+    document.addEventListener('keydown', function (e) {
+        if (e.code !== 'Space' || !rideActive || !rideFriend) return;
+        e.preventDefault();
+        rideBoost = Math.min(rideBoost + BOOST_ADD, BOOST_MAX);
+        flashBtn();
+    });
+
+    // --- RIDE button ---
     const rideBtn = document.createElement('button');
     rideBtn.style.cssText = [
-        'position:fixed',
-        'top:16px',
-        'right:16px',
-        'z-index:9999',
-        'font-family:Courier New,monospace',
-        'font-size:13px',
-        'font-weight:bold',
-        'background:rgba(0,0,0,0.88)',
-        'border:2px solid #ffd700',
-        'color:#ffd700',
-        'padding:7px 20px',
-        'cursor:pointer',
-        'text-transform:uppercase',
-        'letter-spacing:2px',
-        'border-radius:2px',
+        'position:fixed', 'top:16px', 'right:16px', 'z-index:9999',
+        'font-family:Courier New,monospace', 'font-size:13px', 'font-weight:bold',
+        'background:rgba(0,0,0,0.88)', 'border:2px solid #ffd700', 'color:#ffd700',
+        'padding:7px 20px', 'cursor:pointer', 'text-transform:uppercase',
+        'letter-spacing:2px', 'border-radius:2px', 'transition:border-color 0.1s,color 0.1s',
     ].join(';');
     rideBtn.textContent = 'RIDE \u25b6';
     document.body.appendChild(rideBtn);
 
-    // --- friend picker dropdown ---
+    // boost flash visual
+    function flashBtn() {
+        rideBtn.style.background = 'rgba(255,215,0,0.25)';
+        setTimeout(function () { rideBtn.style.background = 'rgba(0,0,0,0.88)'; }, 80);
+    }
+
+    // speed bar — thin strip below the ride button showing current boost
+    const speedBar = document.createElement('div');
+    speedBar.style.cssText = [
+        'position:fixed', 'top:54px', 'right:16px', 'z-index:9999',
+        'width:0%', 'height:3px', 'background:#ffd700',
+        'transition:width 0.05s', 'max-width:160px',
+    ].join(';');
+    document.body.appendChild(speedBar);
+
+    // --- friend picker ---
     const picker = document.createElement('div');
     picker.style.cssText = [
-        'display:none',
-        'position:fixed',
-        'top:54px',
-        'right:16px',
-        'z-index:9999',
-        'background:rgba(0,0,0,0.92)',
-        'border:1px solid #ffd700',
-        'font-family:Courier New,monospace',
-        'font-size:12px',
-        'color:#ffd700',
-        'padding:6px 0',
-        'min-width:140px',
+        'display:none', 'position:fixed', 'top:60px', 'right:16px', 'z-index:9999',
+        'background:rgba(0,0,0,0.92)', 'border:1px solid #ffd700',
+        'font-family:Courier New,monospace', 'font-size:12px', 'color:#ffd700',
+        'padding:6px 0', 'min-width:160px',
     ].join(';');
     document.body.appendChild(picker);
 
     function buildPicker() {
         picker.innerHTML = '';
-        const friends = (typeof friendList !== 'undefined') ? friendList.filter(function (f) { return f.initialized; }) : [];
+        const friends = (typeof friendList !== 'undefined')
+            ? friendList.filter(function (f) { return f.initialized; }) : [];
         if (friends.length === 0) {
             picker.innerHTML = '<div style="padding:6px 14px;opacity:0.5;">deploy friends first</div>';
             return;
@@ -65,26 +78,23 @@
         });
     }
 
-    function showPicker() {
-        buildPicker();
-        picker.style.display = 'block';
-    }
+    function showPicker() { buildPicker(); picker.style.display = 'block'; }
+    function hidePicker()  { picker.style.display = 'none'; }
 
-    function hidePicker() {
-        picker.style.display = 'none';
-    }
-
+    // --- enter / exit ---
     function enterRide(f) {
-        rideFriend = f;
-        rideActive = true;
+        rideFriend  = f;
+        rideActive  = true;
+        rideBoost   = 0;
         window._rideActive = true;
         hidePicker();
-        rideBtn.textContent = 'EXIT \u25a0';
+
+        rideBtn.textContent   = 'EXIT \u25a0';
         rideBtn.style.borderColor = '#ff4400';
-        rideBtn.style.color = '#ff4400';
-        if (typeof controls !== 'undefined') {
-            controls.enabled = false;
-        }
+        rideBtn.style.color       = '#ff4400';
+
+        if (typeof controls !== 'undefined') controls.enabled = false;
+
         // widen FOV for speed sensation
         if (typeof camera !== 'undefined') {
             camera._rideSavedFov = camera.fov;
@@ -93,91 +103,134 @@
         }
         const cam2 = window._twinCamera2;
         if (cam2) { cam2._rideSavedFov = cam2.fov; cam2.fov = 72; cam2.updateProjectionMatrix(); }
-        if (typeof pcb !== 'undefined') pcb.log('RIDE: jumped into ' + f.id);
+
+        // block the ridden friend's auto-advance
+        f._rideOrigCompute = f.compute;
+        f.compute = function () {};
+
+        // slow ALL other friends to a crawl
+        if (typeof friendList !== 'undefined') {
+            friendList.forEach(function (other) {
+                if (other === f) return;
+                other._rideOrigApply = other.apply;
+                other.apply = function () {
+                    this.p.lerp(this.targetP, 0.004);
+                    this.mesh.position.copy(this.p);
+                };
+            });
+        }
+
+        if (typeof pcb !== 'undefined') pcb.log('RIDE: mounted ' + f.id + ' — SPACE to push');
     }
 
     function exitRide() {
-        rideActive = false;
-        window._rideActive = false;
-        rideFriend = null;
-        rideBtn.textContent = 'RIDE \u25b6';
-        rideBtn.style.borderColor = '#ffd700';
-        rideBtn.style.color = '#ffd700';
-        if (typeof controls !== 'undefined') {
-            controls.enabled = true;
-            controls.update();
+        if (rideFriend) {
+            // restore ridden friend
+            if (rideFriend._rideOrigCompute) {
+                rideFriend.compute = rideFriend._rideOrigCompute;
+                delete rideFriend._rideOrigCompute;
+            }
+            // restore other friends
+            if (typeof friendList !== 'undefined') {
+                friendList.forEach(function (other) {
+                    if (other._rideOrigApply) {
+                        other.apply = other._rideOrigApply;
+                        delete other._rideOrigApply;
+                    }
+                });
+            }
         }
-        // restore FOV
+
+        rideActive  = false;
+        window._rideActive = false;
+        rideFriend  = null;
+        rideBoost   = 0;
+        speedBar.style.width = '0%';
+
+        rideBtn.textContent       = 'RIDE \u25b6';
+        rideBtn.style.borderColor = '#ffd700';
+        rideBtn.style.color       = '#ffd700';
+
+        if (typeof controls !== 'undefined') { controls.enabled = true; controls.update(); }
         if (typeof camera !== 'undefined' && camera._rideSavedFov) {
             camera.fov = camera._rideSavedFov;
             camera.updateProjectionMatrix();
         }
         const cam2 = window._twinCamera2;
         if (cam2 && cam2._rideSavedFov) { cam2.fov = cam2._rideSavedFov; cam2.updateProjectionMatrix(); }
+
         if (typeof pcb !== 'undefined') pcb.log('RIDE: dismounted');
     }
 
     rideBtn.onclick = function (e) {
         e.stopPropagation();
-        if (rideActive) {
-            exitRide();
-        } else {
-            picker.style.display === 'block' ? hidePicker() : showPicker();
-        }
+        if (rideActive) { exitRide(); }
+        else { picker.style.display === 'block' ? hidePicker() : showPicker(); }
     };
-
     document.addEventListener('click', function (e) {
-        if (!rideBtn.contains(e.target) && !picker.contains(e.target)) {
-            hidePicker();
-        }
+        if (!rideBtn.contains(e.target) && !picker.contains(e.target)) hidePicker();
     });
 
-    // --- camera math ---
-    const _dir    = new THREE.Vector3();
-    const _camPos = new THREE.Vector3();
-    const _lookAt = new THREE.Vector3();
+    // --- per-frame ride update ---
+    const _dir     = new THREE.Vector3();
+    const _camPos  = new THREE.Vector3();
+    const _lookAt  = new THREE.Vector3();
     const _worldUp = new THREE.Vector3(0, 1, 0);
 
-    function applyRideCamera() {
+    function rideUpdate() {
         if (!rideActive || !rideFriend || !rideFriend.initialized) return;
 
         const f = rideFriend;
 
-        // direction of travel: friend → target
+        // decay boost
+        rideBoost *= BOOST_DECAY;
+        if (rideBoost < 0.001) rideBoost = 0;
+
+        // update speed bar
+        speedBar.style.width = Math.round(rideBoost / BOOST_MAX * 160) + 'px';
+
+        // move the friend
+        const speed = BASE_SPEED + rideBoost;
+        f.p.lerp(f.targetP, speed);
+        f.mesh.position.copy(f.p);
+
+        // close enough to target — queue next vertex
+        if (f.p.distanceTo(f.targetP) < ARRIVE_DIST && f._rideOrigCompute) {
+            f._rideOrigCompute.call(f);
+        }
+
+        // build chase cam
         _dir.subVectors(f.targetP, f.p);
         const spd = _dir.length();
         if (spd > 0.001) _dir.normalize();
 
-        // chase cam: pull back behind friend, lift up
-        const pullBack = Math.max(spd * 4, 80);
-        const liftUp   = 50;
+        // pull back and lift based on boost — faster = further back for sense of speed
+        const pullBack = 60 + rideBoost * 120;
+        const liftUp   = 35 + rideBoost * 40;
 
         _camPos.copy(f.p)
             .addScaledVector(_dir, -pullBack)
             .addScaledVector(_worldUp, liftUp);
 
-        // look slightly ahead of the friend (toward target)
-        _lookAt.copy(f.p).addScaledVector(_dir, 50);
+        _lookAt.copy(f.p).addScaledVector(_dir, 40);
 
         camera.position.copy(_camPos);
         camera.up.copy(_worldUp);
         camera.lookAt(_lookAt);
-
     }
 
-    // intercept both renderers so camera is set right before each draw
+    // intercept both renderers — set camera right before each draw
     const _origRender = renderer.render.bind(renderer);
     renderer.render = function (s, c) {
-        applyRideCamera();
+        rideUpdate();
         _origRender(s, c);
     };
 
-    // intercept renderer2 once it's exposed by two-manifolds.js
     function hookRenderer2() {
         const r2 = window._twinRenderer2;
         if (!r2 || r2._rideHooked) return;
         r2._rideHooked = true;
-        const _origRender2 = r2.render.bind(r2);
+        const _orig2 = r2.render.bind(r2);
         r2.render = function (s, c) {
             if (rideActive) {
                 const cam2 = window._twinCamera2;
@@ -187,15 +240,14 @@
                     cam2.up.copy(camera.up);
                 }
             }
-            _origRender2(s, c);
+            _orig2(s, c);
         };
     }
-    // try immediately, then poll until two-manifolds sets it
     hookRenderer2();
     const _hookInterval = setInterval(function () {
         if (window._twinRenderer2) { hookRenderer2(); clearInterval(_hookInterval); }
     }, 100);
 
-    pcb.log('PGM: RIDE loaded. RIDE \u25b6 button top-right. Deploy friends first.');
+    pcb.log('PGM: RIDE loaded. RIDE \u25b6 top-right. Mount a friend, press SPACE to fly.');
 
 })();
