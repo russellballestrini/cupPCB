@@ -119,12 +119,14 @@
                 if (lt) updateTrail(lt, f.p);
             }
 
-            // right shadow — mirror vIdx into right manifold vertex space
+            // right shadow — mirror vIdx into right manifold vertex space, lerp to match left
             const rt = rightTrails.get(f);
             if (rt && ov2 && f.initialized) {
                 const v = f.vIdx;
                 const tx = ov2[v * 3], ty = ov2[v * 3 + 1], tz = ov2[v * 3 + 2];
-                rt.p.set(tx, ty, tz);  // instant snap
+                rt.p.x += (tx - rt.p.x) * LERP_SPEED;
+                rt.p.y += (ty - rt.p.y) * LERP_SPEED;
+                rt.p.z += (tz - rt.p.z) * LERP_SPEED;
                 rt.sphere.position.copy(rt.p);
                 updateTrail(rt, rt.p);
             }
