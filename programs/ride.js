@@ -11,11 +11,11 @@
     // matches permission-to-ride.html FRIEND_COLORS and friend-trails.js COLORS — same index as f.idx
     const FRIEND_COLORS = [0x68ff9a, 0xffd700, 0xff6820, 0x00eeff, 0xff3232];
 
-    const BASE_SPEED   = 0.004;   // crawl when idle
-    const BOOST_ADD    = 0.45;    // each spacebar hit
-    const BOOST_MAX    = 0.92;    // cap
-    const BOOST_DECAY  = 0.91;    // friction per frame
-    const ARRIVE_DIST  = 8;       // auto-advance when this close to target
+    const BASE_SPEED   = 0.014;   // steady coaster roll
+    const BOOST_ADD    = 0.30;    // each spacebar hit — punchy but not wild
+    const BOOST_MAX    = 0.72;    // cap
+    const BOOST_DECAY  = 0.87;    // friction per frame — quick fade for coaster feel
+    const ARRIVE_DIST  = 18;      // auto-advance when this close to target
 
     // --- spacebar ---
     document.addEventListener('keydown', function (e) {

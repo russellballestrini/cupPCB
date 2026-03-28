@@ -5,26 +5,26 @@
 
 (function () {
 
-    const TRAIL_LENGTH = 60;
-    const STEP_EVERY   = 1;     // compute every frame — no throttle
-    const LERP_SPEED   = 1.0;   // instant snap — no lerp friction
-    const COLORS       = [0x68ff9a, 0xffd700, 0xff6820, 0x00eeff, 0xff3232];
+    const TRAIL_LENGTH  = 60;
+    const LERP_SPEED    = 0.018;  // smooth roller-coaster glide
+    const ARRIVE_DIST   = 18;     // pick next vertex when this close to current target
+    const COLORS        = [0x68ff9a, 0xffd700, 0xff6820, 0x00eeff, 0xff3232];
 
     // --- trail state per friend instance ---
     const leftTrails  = new Map();  // Friend → { positions, line, points[] }
     const rightTrails = new Map();  // Friend → { positions, line, points[], sphere, p }
 
-    // --- patch a friend instance to throttle compute() ---
+    // --- patch a friend instance for smooth coaster movement ---
     function patchSpeed(f) {
         if (f._speedPatched) return;
         f._speedPatched = true;
         const _compute = f.compute.bind(f);
         f.compute = function () {
-            if (tick % STEP_EVERY === 0) _compute();
+            // only advance to next vertex once we're close enough to the current target
+            if (this.p.distanceTo(this.targetP) < ARRIVE_DIST) _compute();
         };
-        const _apply = f.apply.bind(f);
         f.apply = function () {
-            this.p.copy(this.targetP);  // instant — no lerp
+            this.p.lerp(this.targetP, LERP_SPEED);
             this.mesh.position.copy(this.p);
         };
     }
