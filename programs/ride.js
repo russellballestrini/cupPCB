@@ -90,6 +90,8 @@
             camera.fov = 72;
             camera.updateProjectionMatrix();
         }
+        const cam2 = window._twinCamera2;
+        if (cam2) { cam2._rideSavedFov = cam2.fov; cam2.fov = 72; cam2.updateProjectionMatrix(); }
         if (typeof pcb !== 'undefined') pcb.log('RIDE: jumped into ' + f.id);
     }
 
@@ -108,6 +110,8 @@
             camera.fov = camera._rideSavedFov;
             camera.updateProjectionMatrix();
         }
+        const cam2 = window._twinCamera2;
+        if (cam2 && cam2._rideSavedFov) { cam2.fov = cam2._rideSavedFov; cam2.updateProjectionMatrix(); }
         if (typeof pcb !== 'undefined') pcb.log('RIDE: dismounted');
     }
 
@@ -156,6 +160,16 @@
         camera.position.copy(_camPos);
         camera.up.copy(_worldUp);
         camera.lookAt(_lookAt);
+
+        // sync the twin viewport (two-manifolds right camera) to the same view
+        const cam2 = window._twinCamera2;
+        if (cam2) {
+            cam2.position.copy(_camPos);
+            cam2.up.copy(_worldUp);
+            cam2.quaternion.copy(camera.quaternion);
+            cam2.fov = camera.fov;
+            cam2.updateProjectionMatrix();
+        }
     }
 
     // inject into renderer.render so camera is set every frame before draw

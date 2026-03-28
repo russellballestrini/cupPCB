@@ -172,6 +172,7 @@
     scene2.background = new THREE.Color(0xffffff);
     const camera2   = new THREE.PerspectiveCamera(45, vp2.clientWidth / (vp2.clientHeight || 1), 1, 100000);
     camera2.position.set(0, 0, 3000);
+    window._twinCamera2 = camera2;
     const renderer2 = new THREE.WebGLRenderer({ antialias: true });
     renderer2.domElement.style.cssText = 'width:100%;height:100%;display:block;';
     vp2.appendChild(renderer2.domElement);
