@@ -56,7 +56,7 @@
         const color = COLORS[i % COLORS.length];
 
         const sphere = new THREE.Mesh(
-            new THREE.SphereGeometry(12, 8, 8),
+            new THREE.CylinderGeometry(12, 12, 3, 6),
             new THREE.MeshPhongMaterial({ color })
         );
         scene2.add(sphere);

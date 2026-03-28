@@ -334,6 +334,7 @@ let meshVertices = [], originalVertices = [], adjacency = [], friendList = [], m
 let seedPoints = [], flickerRate = 0.05, wobbleBase = 2.0;
 
 const layerKeys = ["g", "r", "c", "y", "v"];
+const FRIEND_COLORS = [0x68ff9a, 0xffd700, 0xff6820, 0x00eeff, 0xff3232];
 
 class PCBInterpreter {
     log(msg) {
@@ -425,7 +426,7 @@ class Friend {
         this.blooms = 0;
         this.mesh = new THREE.Mesh(
             new THREE.CylinderGeometry(12, 12, 3, 6),
-            new THREE.MeshPhongMaterial({ color: 0x444444 })
+            new THREE.MeshPhongMaterial({ color: FRIEND_COLORS[idx % FRIEND_COLORS.length] })
         );
         scene.add(this.mesh);
         this.vIdx = Math.floor(Math.random() * (meshVertices.length / 3));
