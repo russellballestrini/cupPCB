@@ -424,7 +424,7 @@ class Friend {
         this.sap = 0;
         this.blooms = 0;
         this.mesh = new THREE.Mesh(
-            new THREE.SphereGeometry(12, 8, 8),
+            new THREE.CylinderGeometry(12, 12, 3, 6),
             new THREE.MeshPhongMaterial({ color: 0x444444 })
         );
         scene.add(this.mesh);
