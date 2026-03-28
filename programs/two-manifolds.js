@@ -27,6 +27,21 @@
     const LABEL_BASE = 'position:absolute;font-family:Courier New,monospace;font-size:10px;background:rgba(0,0,0,0.6);padding:2px 6px;z-index:20;pointer-events:none;';
     const HUD_BASE   = 'position:absolute;font-family:Courier New,monospace;font-size:11px;color:#fff;background:rgba(0,0,0,0.7);padding:4px 8px;z-index:20;pointer-events:none;white-space:pre;line-height:1.5;';
 
+    // --- sync toggle ---
+    let syncCameras = true;
+    let syncing = false;
+
+    const syncBtn = document.createElement('button');
+    syncBtn.style.cssText = 'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:30;font-family:Courier New,monospace;font-size:10px;background:#111;border:1px solid #68ff9a;color:#68ff9a;padding:3px 10px;cursor:pointer;text-transform:uppercase;';
+    syncBtn.textContent = 'SYNC: ON';
+    syncBtn.onclick = function () {
+        syncCameras = !syncCameras;
+        syncBtn.textContent = syncCameras ? 'SYNC: ON' : 'SYNC: OFF';
+        syncBtn.style.borderColor = syncCameras ? '#68ff9a' : '#555';
+        syncBtn.style.color       = syncCameras ? '#68ff9a' : '#555';
+    };
+    vc.appendChild(syncBtn);
+
     const labelLeft = document.createElement('div');
     labelLeft.textContent = 'MOAD  unpatched  O(n\xb2)';
     vc.appendChild(labelLeft);
@@ -117,6 +132,28 @@
     scene2.add(new THREE.AmbientLight(0xffffff, 0.8));
 
     const controls2 = new THREE.OrbitControls(camera2, renderer2.domElement);
+
+    controls.addEventListener('change', function () {
+        if (!syncCameras || syncing) return;
+        syncing = true;
+        camera2.position.copy(camera.position);
+        camera2.quaternion.copy(camera.quaternion);
+        camera2.up.copy(camera.up);
+        controls2.target.copy(controls.target);
+        controls2.update();
+        syncing = false;
+    });
+
+    controls2.addEventListener('change', function () {
+        if (!syncCameras || syncing) return;
+        syncing = true;
+        camera.position.copy(camera2.position);
+        camera.quaternion.copy(camera2.quaternion);
+        camera.up.copy(camera2.up);
+        controls.target.copy(controls2.target);
+        controls.update();
+        syncing = false;
+    });
 
     window.addEventListener('resize', resizeRenderers);
     window.addEventListener('orientationchange', function () { setTimeout(resizeRenderers, 200); });
