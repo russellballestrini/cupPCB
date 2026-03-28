@@ -31,16 +31,23 @@
     let syncCameras = true;
     let syncing = false;
 
+    const syncModule = document.createElement('div');
+    syncModule.className = 'module';
+    syncModule.innerHTML = '<h3>MANIFOLD_SYNC</h3>';
     const syncBtn = document.createElement('button');
-    syncBtn.style.cssText = 'position:absolute;bottom:8px;left:50%;transform:translateX(-50%);z-index:30;font-family:Courier New,monospace;font-size:10px;background:#111;border:1px solid #68ff9a;color:#68ff9a;padding:3px 10px;cursor:pointer;text-transform:uppercase;';
-    syncBtn.textContent = 'SYNC: ON';
+    syncBtn.className = 'btn';
+    syncBtn.style.borderColor = '#68ff9a';
+    syncBtn.style.color = '#68ff9a';
+    syncBtn.textContent = 'SYNC_CAMERAS: ON';
     syncBtn.onclick = function () {
         syncCameras = !syncCameras;
-        syncBtn.textContent = syncCameras ? 'SYNC: ON' : 'SYNC: OFF';
+        syncBtn.textContent = syncCameras ? 'SYNC_CAMERAS: ON' : 'SYNC_CAMERAS: OFF';
         syncBtn.style.borderColor = syncCameras ? '#68ff9a' : '#555';
         syncBtn.style.color       = syncCameras ? '#68ff9a' : '#555';
     };
-    vc.appendChild(syncBtn);
+    syncModule.appendChild(syncBtn);
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) sidebar.insertBefore(syncModule, sidebar.firstChild);
 
     const labelLeft = document.createElement('div');
     labelLeft.textContent = 'MOAD  unpatched  O(n\xb2)';
