@@ -64,6 +64,7 @@
         const trail = makeTrail(scene2, color);
         trail.sphere = sphere;
         trail.p = new THREE.Vector3();
+        trail.curVIdx = -1;   // track which segment we're on
         rightTrails.set(f, trail);
     }
 
@@ -119,11 +120,17 @@
                 if (lt) updateTrail(lt, f.p);
             }
 
-            // right shadow — mirror vIdx into right manifold vertex space, lerp to match left
+            // right shadow — mirror left friend's vertex-to-vertex traversal in right-space
             const rt = rightTrails.get(f);
             if (rt && ov2 && f.initialized) {
-                const v = f.vIdx;
-                const tx = ov2[v * 3], ty = ov2[v * 3 + 1], tz = ov2[v * 3 + 2];
+                if (rt.curVIdx !== f.vIdx) {
+                    // left friend just began a new edge — snap rt.p to the segment start
+                    // in right-space so each glide begins from a clean position
+                    const pv = (f.prevIdx >= 0) ? f.prevIdx : f.vIdx;
+                    rt.p.set(ov2[pv * 3], ov2[pv * 3 + 1], ov2[pv * 3 + 2]);
+                    rt.curVIdx = f.vIdx;
+                }
+                const tx = ov2[rt.curVIdx * 3], ty = ov2[rt.curVIdx * 3 + 1], tz = ov2[rt.curVIdx * 3 + 2];
                 rt.p.x += (tx - rt.p.x) * LERP_SPEED;
                 rt.p.y += (ty - rt.p.y) * LERP_SPEED;
                 rt.p.z += (tz - rt.p.z) * LERP_SPEED;
