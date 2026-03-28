@@ -31,23 +31,59 @@
     let syncCameras = true;
     let syncing = false;
 
-    const syncModule = document.createElement('div');
-    syncModule.className = 'module';
-    syncModule.innerHTML = '<h3>MANIFOLD_SYNC</h3>';
-    const syncBtn = document.createElement('button');
-    syncBtn.className = 'btn';
-    syncBtn.style.borderColor = '#68ff9a';
-    syncBtn.style.color = '#68ff9a';
-    syncBtn.textContent = 'SYNC_CAMERAS: ON';
-    syncBtn.onclick = function () {
-        syncCameras = !syncCameras;
-        syncBtn.textContent = syncCameras ? 'SYNC_CAMERAS: ON' : 'SYNC_CAMERAS: OFF';
-        syncBtn.style.borderColor = syncCameras ? '#68ff9a' : '#555';
-        syncBtn.style.color       = syncCameras ? '#68ff9a' : '#555';
-    };
-    syncModule.appendChild(syncBtn);
+    function setSyncState(on) {
+        syncCameras = on;
+        const label = on ? 'SYNC \u25cf' : 'SYNC \u25cb';
+        const col   = on ? '#68ff9a' : '#888';
+        hudSyncBtn.textContent       = label;
+        hudSyncBtn.style.color       = col;
+        hudSyncBtn.style.borderColor = col;
+        if (sidebarSyncBtn) {
+            sidebarSyncBtn.textContent       = on ? 'SYNC_CAMERAS: ON' : 'SYNC_CAMERAS: OFF';
+            sidebarSyncBtn.style.color       = col;
+            sidebarSyncBtn.style.borderColor = col;
+        }
+    }
+
+    // floating HUD button — top center of viewport container, always visible
+    const hudSyncBtn = document.createElement('button');
+    hudSyncBtn.style.cssText = [
+        'position:absolute',
+        'top:8px',
+        'left:50%',
+        'transform:translateX(-50%)',
+        'z-index:50',
+        'font-family:Courier New,monospace',
+        'font-size:11px',
+        'font-weight:bold',
+        'background:rgba(0,0,0,0.75)',
+        'border:1px solid #68ff9a',
+        'color:#68ff9a',
+        'padding:4px 14px',
+        'cursor:pointer',
+        'text-transform:uppercase',
+        'letter-spacing:1px',
+    ].join(';');
+    hudSyncBtn.textContent = 'SYNC \u25cf';
+    hudSyncBtn.onclick = function () { setSyncState(!syncCameras); };
+    vc.appendChild(hudSyncBtn);
+
+    // sidebar module (desktop)
+    let sidebarSyncBtn = null;
     const sidebar = document.getElementById('sidebar');
-    if (sidebar) sidebar.insertBefore(syncModule, sidebar.firstChild);
+    if (sidebar) {
+        const syncModule = document.createElement('div');
+        syncModule.className = 'module';
+        syncModule.innerHTML = '<h3>MANIFOLD_SYNC</h3>';
+        sidebarSyncBtn = document.createElement('button');
+        sidebarSyncBtn.className = 'btn';
+        sidebarSyncBtn.style.borderColor = '#68ff9a';
+        sidebarSyncBtn.style.color = '#68ff9a';
+        sidebarSyncBtn.textContent = 'SYNC_CAMERAS: ON';
+        sidebarSyncBtn.onclick = function () { setSyncState(!syncCameras); };
+        syncModule.appendChild(sidebarSyncBtn);
+        sidebar.insertBefore(syncModule, sidebar.firstChild);
+    }
 
     const labelLeft = document.createElement('div');
     labelLeft.textContent = 'MOAD  unpatched  O(n\xb2)';
