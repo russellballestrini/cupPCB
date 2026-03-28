@@ -8,6 +8,10 @@
     let rideFriend = null;
     let rideBoost   = 0;
 
+    // matches friend-trails.js COLORS — same index as f.idx
+    const FRIEND_COLORS = [0x68ff9a, 0xffd700, 0xff6820, 0x00eeff, 0xff3232];
+    const FRIEND_COLOR_DEFAULT = 0x444444;
+
     const BASE_SPEED   = 0.004;   // crawl when idle
     const BOOST_ADD    = 0.45;    // each spacebar hit
     const BOOST_MAX    = 0.92;    // cap
@@ -120,6 +124,9 @@
             });
         }
 
+        // colour the ridden friend to match their trail colour
+        f.mesh.material.color.setHex(FRIEND_COLORS[f.idx % FRIEND_COLORS.length]);
+
         if (typeof pcb !== 'undefined') pcb.log('RIDE: mounted ' + f.id + ' — SPACE to push');
     }
 
@@ -140,6 +147,9 @@
                 });
             }
         }
+
+        // restore default mesh colour
+        if (rideFriend) rideFriend.mesh.material.color.setHex(FRIEND_COLOR_DEFAULT);
 
         rideActive  = false;
         window._rideActive = false;
