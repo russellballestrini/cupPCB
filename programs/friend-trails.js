@@ -20,8 +20,13 @@
         f._speedPatched = true;
         const _compute = f.compute.bind(f);
         f.compute = function () {
-            // only advance to next vertex once we're close enough to the current target
-            if (this.p.distanceTo(this.targetP) < ARRIVE_DIST) _compute();
+            // fire exactly once per arrival — gate on vIdx so it doesn't
+            // keep firing every frame once p is within ARRIVE_DIST
+            if (this.p.distanceTo(this.targetP) < ARRIVE_DIST &&
+                    this._lastDeparted !== this.vIdx) {
+                _compute();                        // vIdx → next vertex
+                this._lastDeparted = this.vIdx;   // seal gate until next arrival
+            }
         };
         f.apply = function () {
             this.p.lerp(this.targetP, LERP_SPEED);
