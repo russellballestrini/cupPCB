@@ -62,9 +62,12 @@
         scene2.add(sphere);
 
         const trail = makeTrail(scene2, color);
-        trail.sphere = sphere;
-        trail.p = new THREE.Vector3();
-        trail.curVIdx = -1;   // track which segment we're on
+        trail.sphere    = sphere;
+        trail.p         = new THREE.Vector3();
+        trail.curVIdx   = -1;
+        trail.segStartP = new THREE.Vector3();
+        trail.segEndP   = new THREE.Vector3();
+        trail.leftSegLen = 1;
         rightTrails.set(f, trail);
     }
 
@@ -120,19 +123,22 @@
                 if (lt) updateTrail(lt, f.p);
             }
 
-            // right shadow — continuously lerp toward current target vertex in right-space
+            // right shadow — parametric mirror of left friend's edge progress
             const rt = rightTrails.get(f);
             if (rt && ov2 && f.initialized) {
-                // first time: snap to correct position instead of lerping from origin
-                if (rt.curVIdx === -1) {
-                    rt.p.set(ov2[f.vIdx * 3], ov2[f.vIdx * 3 + 1], ov2[f.vIdx * 3 + 2]);
+                if (rt.curVIdx !== f.vIdx) {
+                    // left friend started a new edge — record start/end in right-space
+                    // and the left segment length so we can compute t each frame
+                    const pv = (f.prevIdx >= 0) ? f.prevIdx : f.vIdx;
+                    rt.segStartP.set(ov2[pv * 3], ov2[pv * 3 + 1], ov2[pv * 3 + 2]);
+                    rt.segEndP.set(ov2[f.vIdx * 3], ov2[f.vIdx * 3 + 1], ov2[f.vIdx * 3 + 2]);
+                    rt.leftSegLen = f.p.distanceTo(f.targetP) || 1;
                     rt.curVIdx = f.vIdx;
                 }
-                const tx = ov2[f.vIdx * 3], ty = ov2[f.vIdx * 3 + 1], tz = ov2[f.vIdx * 3 + 2];
-                rt.p.x += (tx - rt.p.x) * LERP_SPEED;
-                rt.p.y += (ty - rt.p.y) * LERP_SPEED;
-                rt.p.z += (tz - rt.p.z) * LERP_SPEED;
-                rt.curVIdx = f.vIdx;
+                // t = how far the left friend has travelled on this edge (0→1)
+                const leftRemaining = f.p.distanceTo(f.targetP);
+                const t = Math.max(0, Math.min(1, 1 - leftRemaining / rt.leftSegLen));
+                rt.p.lerpVectors(rt.segStartP, rt.segEndP, t);
                 rt.sphere.position.copy(rt.p);
                 updateTrail(rt, rt.p);
             }
