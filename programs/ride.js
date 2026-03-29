@@ -122,19 +122,6 @@
         f._rideOrigCompute = f.compute;
         f.compute = function () {};
 
-        // re-slow all others (new friend is no longer in "other" set, prev is)
-        if (typeof friendList !== 'undefined') {
-            friendList.forEach(function (other) {
-                if (other === f) {
-                    // was being slowed, free it (ride.js now controls it)
-                    if (other._rideOrigApply) { other.apply = other._rideOrigApply; delete other._rideOrigApply; }
-                } else if (!other._rideOrigApply) {
-                    // prev friend needs to be slowed now
-                    other._rideOrigApply = other.apply;
-                    other.apply = function () { this.p.lerp(this.targetP, 0.004); this.mesh.position.copy(this.p); };
-                }
-            });
-        }
 
         // update button label
         rideBtn.textContent = '\u25cf ' + f.id;
@@ -170,17 +157,6 @@
         f._rideOrigCompute = f.compute;
         f.compute = function () {};
 
-        // slow ALL other friends to a crawl
-        if (typeof friendList !== 'undefined') {
-            friendList.forEach(function (other) {
-                if (other === f) return;
-                other._rideOrigApply = other.apply;
-                other.apply = function () {
-                    this.p.lerp(this.targetP, 0.004);
-                    this.mesh.position.copy(this.p);
-                };
-            });
-        }
 
         if (typeof pcb !== 'undefined') pcb.log('RIDE: mounted ' + f.id + ' — SPACE to push');
     }
@@ -191,15 +167,6 @@
             if (rideFriend._rideOrigCompute) {
                 rideFriend.compute = rideFriend._rideOrigCompute;
                 delete rideFriend._rideOrigCompute;
-            }
-            // restore other friends
-            if (typeof friendList !== 'undefined') {
-                friendList.forEach(function (other) {
-                    if (other._rideOrigApply) {
-                        other.apply = other._rideOrigApply;
-                        delete other._rideOrigApply;
-                    }
-                });
             }
         }
 
