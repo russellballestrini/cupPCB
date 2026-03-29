@@ -42,14 +42,17 @@ Then ask fox what the mission is.
 | `permission-to-ride.html` | 745 | stabilized clone (active) |
 
 ### Kernel OS layers (inside the HTML)
-| layer | lines | role |
-|---|---|---|
-| globals | ~3 | shared memory: scene, camera, renderer, controls, tick, meshVertices, adjacency, friendList |
-| `PCBInterpreter` | ~77 | language runtime — ASCII/manifold/coord dialects, soul log |
-| `Friend` class | ~90 | agent kernel — graph walker, life system, bloom events |
-| `buildManifold` | ~90 | Sym²(X) embedding — the mathematical heart, O(n²) structure |
-| `animate` loop | ~23 | 60fps heartbeat — oracle eval, wobble, compute, apply, render |
-| program loader | ~12 | dynamic script injection at window.load |
+Total kernel JS: **406 lines** / 743 kernel total (337 HTML+CSS)
+
+| layer | lines | % of JS | role |
+|---|---|---|---|
+| globals + glue | 111 | 27% | shared memory, resize, draw, init, event wiring |
+| `PCBInterpreter` | 77 | 19% | language runtime — ASCII/manifold/coord dialects, soul log |
+| `Friend` class | 90 | 22% | agent kernel — graph walker, life system, bloom events |
+| `buildManifold` | 91 | 22% | Sym²(X) embedding — mathematical heart, O(n²) structure |
+| `animate` loop | 23 | 6% | 60fps heartbeat — oracle eval, wobble, compute, apply, render |
+| program loader | 14 | 3% | dynamic script injection at window.load |
+| **total JS** | **406** | 100% | |
 
 ### Userland programs (`programs/`)
 | file | lines | status |
