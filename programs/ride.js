@@ -233,10 +233,11 @@
     });
 
     // --- per-frame ride update ---
-    const _dir     = new THREE.Vector3();
-    const _camPos  = new THREE.Vector3();
-    const _lookAt  = new THREE.Vector3();
-    const _worldUp = new THREE.Vector3(0, 1, 0);
+    const _dir       = new THREE.Vector3();
+    const _smoothDir = new THREE.Vector3();  // lerped direction — prevents camera snap on new target
+    const _camPos    = new THREE.Vector3();
+    const _lookAt    = new THREE.Vector3();
+    const _worldUp   = new THREE.Vector3(0, 1, 0);
 
     function rideUpdate() {
         if (!rideActive || !rideFriend || !rideFriend.initialized) return;
@@ -250,9 +251,10 @@
         // update speed bar
         speedBar.style.width = Math.round(rideBoost / BOOST_MAX * 160) + 'px';
 
-        // move the friend
+        // move the friend at constant speed + boost
         const speed = BASE_SPEED + rideBoost;
-        f.p.lerp(f.targetP, speed);
+        const distToTarget = f.p.distanceTo(f.targetP);
+        if (distToTarget > 0.01) f.p.lerp(f.targetP, Math.min(1, speed / distToTarget));
         f.mesh.position.copy(f.p);
 
         // close enough to target — queue next vertex
@@ -260,20 +262,23 @@
             f._rideOrigCompute.call(f);
         }
 
-        // build chase cam
+        // build chase cam — smooth the direction so camera pans instead of snapping
         _dir.subVectors(f.targetP, f.p);
-        const spd = _dir.length();
-        if (spd > 0.001) _dir.normalize();
+        if (_dir.length() > 0.001) _dir.normalize();
+        // initialise smoothDir on first frame
+        if (_smoothDir.lengthSq() < 0.0001) _smoothDir.copy(_dir);
+        _smoothDir.lerp(_dir, 0.06);
+        if (_smoothDir.lengthSq() > 0.0001) _smoothDir.normalize();
 
         // pull back and lift based on boost — faster = further back for sense of speed
         const pullBack = 60 + rideBoost * 120;
         const liftUp   = 35 + rideBoost * 40;
 
         _camPos.copy(f.p)
-            .addScaledVector(_dir, -pullBack)
+            .addScaledVector(_smoothDir, -pullBack)
             .addScaledVector(_worldUp, liftUp);
 
-        _lookAt.copy(f.p).addScaledVector(_dir, 40);
+        _lookAt.copy(f.p).addScaledVector(_smoothDir, 40);
 
         camera.position.copy(_camPos);
         camera.up.copy(_worldUp);
